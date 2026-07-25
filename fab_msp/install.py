@@ -1,18 +1,52 @@
 from __future__ import annotations
 
+import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+
+# MSP fields surfaced to agents inside the Helpdesk SPA ticket view. The SPA
+# renders whatever the Default ticket template lists, so registering them there
+# is how we extend the agent view without touching the Vue frontend.
+AGENT_TEMPLATE_FIELDS = [
+    "fab_customer_service",
+    "fab_approval_status",
+    "fab_billing_status",
+    "fab_sales_invoice",
+    "fab_subscription",
+]
 
 
 def after_install():
     ensure_custom_fields()
+    ensure_ticket_template_fields()
 
 
 def after_migrate():
     ensure_custom_fields()
+    ensure_ticket_template_fields()
 
 
 def ensure_custom_fields():
     create_custom_fields(get_custom_fields(), ignore_validate=True)
+
+
+def ensure_ticket_template_fields():
+    """Expose the MSP ticket fields in the agent SPA via the Default template.
+
+    Idempotent: only appends fields that are not already on the template. All
+    are hidden from the customer portal (internal fulfillment data).
+    """
+    if not frappe.db.exists("HD Ticket Template", "Default"):
+        return
+    template = frappe.get_doc("HD Ticket Template", "Default")
+    present = {row.fieldname for row in template.fields}
+    changed = False
+    for fieldname in AGENT_TEMPLATE_FIELDS:
+        if fieldname not in present:
+            template.append("fields", {"fieldname": fieldname, "hide_from_customer": 1})
+            changed = True
+    if changed:
+        template.flags.ignore_permissions = True
+        template.save()
 
 
 def get_custom_fields() -> dict:
