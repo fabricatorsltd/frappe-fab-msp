@@ -15,14 +15,97 @@ AGENT_TEMPLATE_FIELDS = [
 ]
 
 
+FORM_SCRIPT_NAME = "MSP Ticket Actions"
+
+FORM_SCRIPT = """
+function setupForm({ doc, call, updateField, createToast }) {
+  const actions = [];
+
+  if (!doc.fab_customer_service) {
+    actions.push({
+      label: "Create service",
+      icon: "plus-circle",
+      onClick: async () => {
+        try {
+          const name = await call("fab_msp.api.create_service_from_ticket", {
+            ticket: doc.name,
+          });
+          updateField("fab_customer_service", name);
+          createToast({ title: "Service created: " + name, icon: "check", iconClasses: "text-green-600" });
+        } catch (e) {
+          createToast({ title: e.message || "Could not create service", icon: "x", iconClasses: "text-red-600" });
+        }
+      },
+    });
+  }
+
+  if (doc.fab_approval_status === "Pending") {
+    actions.push({
+      label: "Approve",
+      icon: "check",
+      onClick: async () => {
+        try {
+          await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Approved" });
+          updateField("fab_approval_status", "Approved");
+          createToast({ title: "Request approved", icon: "check", iconClasses: "text-green-600" });
+        } catch (e) {
+          createToast({ title: e.message || "Could not approve", icon: "x", iconClasses: "text-red-600" });
+        }
+      },
+    });
+    actions.push({
+      label: "Reject",
+      icon: "x",
+      onClick: async () => {
+        try {
+          await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Rejected" });
+          updateField("fab_approval_status", "Rejected");
+          createToast({ title: "Request rejected", icon: "x", iconClasses: "text-red-600" });
+        } catch (e) {
+          createToast({ title: e.message || "Could not reject", icon: "x", iconClasses: "text-red-600" });
+        }
+      },
+    });
+  }
+
+  return { actions };
+}
+"""
+
+
 def after_install():
     ensure_custom_fields()
     ensure_ticket_template_fields()
+    ensure_form_script()
 
 
 def after_migrate():
     ensure_custom_fields()
     ensure_ticket_template_fields()
+    ensure_form_script()
+
+
+def ensure_form_script():
+    """Ship the agent ticket actions (create service, approve/reject) as an
+    HD Form Script. Idempotent: keeps the script content in sync."""
+    if not frappe.db.exists("DocType", "HD Form Script"):
+        return
+    if frappe.db.exists("HD Form Script", FORM_SCRIPT_NAME):
+        doc = frappe.get_doc("HD Form Script", FORM_SCRIPT_NAME)
+    else:
+        doc = frappe.new_doc("HD Form Script")
+        doc.name = FORM_SCRIPT_NAME
+    doc.update(
+        {
+            "dt": "HD Ticket",
+            "apply_to": "Form",
+            "enabled": 1,
+            "apply_to_customer_portal": 0,
+            "script": FORM_SCRIPT.strip(),
+        }
+    )
+    doc.flags.ignore_permissions = True
+    doc.save()
 
 
 def ensure_custom_fields():
