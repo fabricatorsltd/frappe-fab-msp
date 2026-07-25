@@ -19,21 +19,22 @@ FORM_SCRIPT_NAME = "MSP Ticket Actions"
 
 FORM_SCRIPT = """
 function setupForm({ doc, call, updateField, createToast }) {
+  const t = window.__ || ((s) => s);
+  const ok = (title) => createToast({ title, icon: "check", iconClasses: "text-green-600" });
+  const err = (title) => createToast({ title, icon: "x", iconClasses: "text-red-600" });
   const actions = [];
 
-  if (!doc.fab_customer_service) {
+  if (doc.ticket_type && !doc.fab_customer_service) {
     actions.push({
-      label: "Create service",
-      icon: "plus-circle",
+      label: t("Create service"),
+      iconLeft: "plus-circle",
       onClick: async () => {
         try {
-          const name = await call("fab_msp.api.create_service_from_ticket", {
-            ticket: doc.name,
-          });
+          const name = await call("fab_msp.api.create_service_from_ticket", { ticket: doc.name });
           updateField("fab_customer_service", name);
-          createToast({ title: "Service created: " + name, icon: "check", iconClasses: "text-green-600" });
+          ok(t("Service created") + ": " + name);
         } catch (e) {
-          createToast({ title: e.message || "Could not create service", icon: "x", iconClasses: "text-red-600" });
+          err(e.message || t("Could not create service"));
         }
       },
     });
@@ -41,28 +42,28 @@ function setupForm({ doc, call, updateField, createToast }) {
 
   if (doc.fab_approval_status === "Pending") {
     actions.push({
-      label: "Approve",
-      icon: "check",
+      label: t("Approve"),
+      iconLeft: "check",
       onClick: async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Approved" });
           updateField("fab_approval_status", "Approved");
-          createToast({ title: "Request approved", icon: "check", iconClasses: "text-green-600" });
+          ok(t("Request approved"));
         } catch (e) {
-          createToast({ title: e.message || "Could not approve", icon: "x", iconClasses: "text-red-600" });
+          err(e.message || t("Could not approve"));
         }
       },
     });
     actions.push({
-      label: "Reject",
-      icon: "x",
+      label: t("Reject"),
+      iconLeft: "x",
       onClick: async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Rejected" });
           updateField("fab_approval_status", "Rejected");
-          createToast({ title: "Request rejected", icon: "x", iconClasses: "text-red-600" });
+          ok(t("Request rejected"));
         } catch (e) {
-          createToast({ title: e.message || "Could not reject", icon: "x", iconClasses: "text-red-600" });
+          err(e.message || t("Could not reject"));
         }
       },
     });

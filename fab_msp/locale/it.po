@@ -1,0 +1,60 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version:  fab_msp\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-07-25 00:00+0000\n"
+"PO-Revision-Date: 2026-07-25 00:00+0000\n"
+"Last-Translator: FAB Team\n"
+"Language: it\n"
+"Language-Team: Italian\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.16.0\n"
+
+msgid "Create service"
+msgstr "Crea servizio"
+
+msgid "Approve"
+msgstr "Approva"
+
+msgid "Reject"
+msgstr "Rifiuta"
+
+msgid "Service created"
+msgstr "Servizio creato"
+
+msgid "Request approved"
+msgstr "Richiesta approvata"
+
+msgid "Request rejected"
+msgstr "Richiesta rifiutata"
+
+msgid "Could not create service"
+msgstr "Impossibile creare il servizio"
+
+msgid "Could not approve"
+msgstr "Impossibile approvare"
+
+msgid "Could not reject"
+msgstr "Impossibile rifiutare"
+
+msgid "This ticket has no customer set."
+msgstr "Questo ticket non ha un cliente impostato."
+
+msgid "This ticket is already linked to a service."
+msgstr "Questo ticket è già collegato a un servizio."
+
+msgid "The ticket type has no Service Type configured; set it on the ticket type first."
+msgstr "Il tipo di richiesta non ha un Service Type configurato; impostalo prima sul tipo di richiesta."
+
+msgid "Invalid decision."
+msgstr "Decisione non valida."
+
+msgid "You are not permitted to approve requests."
+msgstr "Non hai i permessi per approvare le richieste."
+
+msgid "This request is not pending approval."
+msgstr "Questa richiesta non è in attesa di approvazione."
