@@ -86,7 +86,8 @@ app_license = "agpl-3.0"
 # ------------
 
 # before_install = "fab_msp.install.before_install"
-# after_install = "fab_msp.install.after_install"
+after_install = "fab_msp.install.after_install"
+after_migrate = "fab_msp.install.after_migrate"
 
 # Uninstallation
 # ------------
@@ -138,13 +139,11 @@ app_license = "agpl-3.0"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"HD Ticket": {
+		"validate": "fab_msp.ticket.apply_service_rules",
+	}
+}
 
 # Scheduled Tasks
 # ---------------
