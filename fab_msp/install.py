@@ -86,23 +86,76 @@ def after_migrate():
     ensure_form_script()
 
 
+FORM_SCRIPT_PORTAL_NAME = "MSP Ticket Approval (Portal)"
+
+# Customer portal: only approve/reject, for the customer's managers. Create
+# service stays agent-only. Server-side routing enforces who may decide.
+FORM_SCRIPT_PORTAL = """
+function setupForm({ doc, call, updateField, createToast }) {
+  const t = window.__ || ((s) => s);
+  const ok = (title) => createToast({ title, icon: "check", iconClasses: "text-green-600" });
+  const err = (title) => createToast({ title, icon: "x", iconClasses: "text-red-600" });
+  const actions = [];
+
+  if (doc.fab_approval_status === "Pending") {
+    actions.push({
+      label: t("Approve"),
+      iconLeft: "check",
+      onClick: async () => {
+        try {
+          await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Approved" });
+          updateField("fab_approval_status", "Approved");
+          ok(t("Request approved"));
+        } catch (e) {
+          err(e.message || t("Could not approve"));
+        }
+      },
+    });
+    actions.push({
+      label: t("Reject"),
+      iconLeft: "x",
+      onClick: async () => {
+        try {
+          await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Rejected" });
+          updateField("fab_approval_status", "Rejected");
+          ok(t("Request rejected"));
+        } catch (e) {
+          err(e.message || t("Could not reject"));
+        }
+      },
+    });
+  }
+
+  return { actions };
+}
+"""
+
+
 def ensure_form_script():
-    """Ship the agent ticket actions (create service, approve/reject) as an
-    HD Form Script. Idempotent: keeps the script content in sync."""
+    """Ship the ticket action scripts as HD Form Scripts. Idempotent.
+
+    Agent view: create service + approve/reject. Customer portal: approve/reject
+    only (for the customer's managers).
+    """
     if not frappe.db.exists("DocType", "HD Form Script"):
         return
-    if frappe.db.exists("HD Form Script", FORM_SCRIPT_NAME):
-        doc = frappe.get_doc("HD Form Script", FORM_SCRIPT_NAME)
+    _upsert_form_script(FORM_SCRIPT_NAME, FORM_SCRIPT, portal=0)
+    _upsert_form_script(FORM_SCRIPT_PORTAL_NAME, FORM_SCRIPT_PORTAL, portal=1)
+
+
+def _upsert_form_script(name: str, script: str, portal: int):
+    if frappe.db.exists("HD Form Script", name):
+        doc = frappe.get_doc("HD Form Script", name)
     else:
         doc = frappe.new_doc("HD Form Script")
-        doc.name = FORM_SCRIPT_NAME
+        doc.name = name
     doc.update(
         {
             "dt": "HD Ticket",
             "apply_to": "Form",
             "enabled": 1,
-            "apply_to_customer_portal": 0,
-            "script": FORM_SCRIPT.strip(),
+            "apply_to_customer_portal": portal,
+            "script": script.strip(),
         }
     )
     doc.flags.ignore_permissions = True
