@@ -18,7 +18,7 @@ AGENT_TEMPLATE_FIELDS = [
 FORM_SCRIPT_NAME = "MSP Ticket Actions"
 
 FORM_SCRIPT = """
-function setupForm({ doc, call, updateField, createToast }) {
+async function setupForm({ doc, call, updateField, createToast }) {
   const t = window.__ || ((s) => s);
   const ok = (title) => createToast({ title, icon: "check", iconClasses: "text-green-600" });
   const err = (title) => createToast({ title, icon: "x", iconClasses: "text-red-600" });
@@ -40,7 +40,7 @@ function setupForm({ doc, call, updateField, createToast }) {
     });
   }
 
-  if (doc.fab_approval_status === "Pending") {
+  if (doc.fab_approval_status === "Pending" && (await call("fab_msp.api.can_approve_ticket", { ticket: doc.name }))) {
     actions.push({
       label: t("Approve"),
       iconLeft: "check",
@@ -91,13 +91,13 @@ FORM_SCRIPT_PORTAL_NAME = "MSP Ticket Approval (Portal)"
 # Customer portal: only approve/reject, for the customer's managers. Create
 # service stays agent-only. Server-side routing enforces who may decide.
 FORM_SCRIPT_PORTAL = """
-function setupForm({ doc, call, updateField, createToast }) {
+async function setupForm({ doc, call, updateField, createToast }) {
   const t = window.__ || ((s) => s);
   const ok = (title) => createToast({ title, icon: "check", iconClasses: "text-green-600" });
   const err = (title) => createToast({ title, icon: "x", iconClasses: "text-red-600" });
   const actions = [];
 
-  if (doc.fab_approval_status === "Pending") {
+  if (doc.fab_approval_status === "Pending" && (await call("fab_msp.api.can_approve_ticket", { ticket: doc.name }))) {
     actions.push({
       label: t("Approve"),
       iconLeft: "check",
