@@ -1,0 +1,78 @@
+{
+ "app": "fab_msp",
+ "charts": [],
+ "content": "[{\"id\":\"msp_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Managed Services</span>\",\"col\":12}},{\"id\":\"msp_sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer Services\",\"col\":3}},{\"id\":\"msp_sc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Types\",\"col\":3}}]",
+ "creation": "2026-07-25 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "tool",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "MSP",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Managed Services",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Customer Service",
+   "link_count": 0,
+   "link_to": "Customer Service",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Customer Service Type",
+   "link_count": 0,
+   "link_to": "Customer Service Type",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-07-25 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Fab MSP",
+ "name": "MSP",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 30.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Customer Services",
+   "link_to": "Customer Service",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Service Types",
+   "link_to": "Customer Service Type",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "MSP",
+ "type": "Workspace"
+}
