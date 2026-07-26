@@ -211,9 +211,33 @@ def _sales_invoice(t, item, qty, rate, description) -> str:
         si.taxes_and_charges = template
         for tax in get_taxes_and_charges("Sales Taxes and Charges Template", template):
             si.append("taxes", tax)
+    set_payment_schedule(si)
     si.flags.ignore_permissions = True
     si.insert()  # left as draft for review
     return si.name
+
+
+def default_mode_of_payment() -> str | None:
+    """A mode of payment carrying an Italian MP code, needed for e-invoicing.
+    Prefers Wire Transfer (MP05); otherwise the first one with a code."""
+    if frappe.db.get_value("Mode of Payment", "Wire Transfer", "mode_of_payment_code"):
+        return "Wire Transfer"
+    for name in frappe.get_all("Mode of Payment", pluck="name"):
+        if frappe.db.get_value("Mode of Payment", name, "mode_of_payment_code"):
+            return name
+    return None
+
+
+def set_payment_schedule(si) -> None:
+    """FatturaPA needs a mode of payment on the payment schedule."""
+    mop = default_mode_of_payment()
+    if not mop:
+        return
+    si.set("payment_schedule", [])
+    si.append(
+        "payment_schedule",
+        {"due_date": si.get("posting_date") or today(), "invoice_portion": 100, "mode_of_payment": mop},
+    )
 
 
 def _ensure_subscription(t, cs, item) -> str | None:

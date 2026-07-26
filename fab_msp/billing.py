@@ -3,7 +3,30 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt, today
 
-from fab_msp.fulfillment import _customer_rate, _customer_tax_template, _erp_customer
+from fab_msp.fulfillment import (
+    _customer_rate,
+    _customer_tax_template,
+    _erp_customer,
+    set_payment_schedule,
+)
+
+
+def reflect_invoice_on_submit(doc, method=None):
+    """When an MSP-generated Sales Invoice is submitted, mark the originating
+    tickets Invoiced. Sending to SdI stays the standard fab_italy_edi action on
+    the submitted invoice."""
+    tickets = set(
+        frappe.get_all("HD Ticket", filters={"fab_sales_invoice": doc.name}, pluck="name")
+    )
+    tickets.update(
+        t
+        for t in frappe.get_all(
+            "MSP Billing Charge", filters={"sales_invoice": doc.name}, pluck="hd_ticket"
+        )
+        if t
+    )
+    for ticket in tickets:
+        frappe.db.set_value("HD Ticket", ticket, "fab_billing_status", "Invoiced")
 
 
 @frappe.whitelist()
@@ -105,6 +128,7 @@ def generate_for_customer(customer: str, posting_date: str | None = None) -> str
         si.taxes_and_charges = template
         for tax in get_taxes_and_charges("Sales Taxes and Charges Template", template):
             si.append("taxes", tax)
+    set_payment_schedule(si)
     si.flags.ignore_permissions = True
     si.insert()  # draft; operator submits at month end
 

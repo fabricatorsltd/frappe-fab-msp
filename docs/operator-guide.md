@@ -122,6 +122,19 @@ For consolidated customers, run the month-end consolidation
 Newly added seats are excluded from the same-period base so nothing is billed
 twice. Review and submit the draft manually.
 
+Run it from the desk: **MSP > Consolidated Billing**, set the posting date and
+click *Generate Consolidated Invoices*; the created drafts are listed.
+
+## Invoice lifecycle and SdI
+
+MSP invoices (immediate or consolidated) are created as **draft** and already
+carry a payment mode (Wire Transfer / MP05) so they pass e-invoicing validation.
+The operator reviews the draft and **submits** it; on submit the originating
+tickets move to Invoiced. Sending to SdI is the standard **Send to SdI** action
+that fab_italy_edi shows on any submitted Sales Invoice, so no MSP-specific step
+is needed. Adjust the payment mode on the draft before submit if the customer
+pays another way.
+
 ## Known configuration gaps
 
 - The sales tax template for a customer with no tax category falls back to the

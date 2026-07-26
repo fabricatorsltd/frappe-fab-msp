@@ -143,7 +143,10 @@ doc_events = {
 	"HD Ticket": {
 		"validate": "fab_msp.ticket.apply_service_rules",
 		"on_update": "fab_msp.ticket.maybe_fulfill_on_close",
-	}
+	},
+	"Sales Invoice": {
+		"on_submit": "fab_msp.billing.reflect_invoice_on_submit",
+	},
 }
 
 # Scheduled Tasks
