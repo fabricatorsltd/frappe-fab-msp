@@ -44,23 +44,32 @@ def generate_for_customer(customer: str, posting_date: str | None = None) -> str
 
     items = []
 
-    # recurring base: active recurring pools, at their pre-addition quantity
+    # recurring base at each service's own interval, at pre-addition quantity.
+    # Monthly services bill every month; annual services only in their renewal
+    # month (matched by month-of-year so they recur each anniversary).
+    month_of_year = posting_date[5:7]
     for pool in frappe.get_all(
         "Customer Service",
         filters={"customer": customer, "status": "Active", "billing_mode": "Recurring"},
-        fields=["name", "billing_item", "quantity", "service_label"],
+        fields=["name", "billing_item", "quantity", "service_label", "billing_interval", "renewal_date"],
     ):
         base_qty = flt(pool.quantity) - added_by_pool.get(pool.name, 0)
         if not pool.billing_item or base_qty <= 0:
             continue
-        monthly = flt(_customer_rate(customer, pool.billing_item, None) / 12.0, 2)
+        rate = flt(_customer_rate(customer, pool.billing_item, None))
+        if (pool.billing_interval or "Monthly") == "Annual":
+            if not pool.renewal_date or str(pool.renewal_date)[5:7] != month_of_year:
+                continue
+            description = f"{pool.service_label} - annual {str(pool.renewal_date)[:4]}"
+        else:
+            description = f"{pool.service_label} - recurring {posting_date[:7]}"
         items.append(
             {
                 "item_code": pool.billing_item,
                 "qty": base_qty,
-                "rate": monthly,
-                "price_list_rate": monthly,
-                "description": f"{pool.service_label} - recurring {posting_date[:7]}",
+                "rate": rate,
+                "price_list_rate": rate,
+                "description": description,
             }
         )
 

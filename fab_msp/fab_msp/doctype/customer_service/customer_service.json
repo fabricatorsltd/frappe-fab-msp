@@ -20,6 +20,7 @@
   "section_break_billing",
   "billing_item",
   "billing_mode",
+  "billing_interval",
   "column_break_billing",
   "subscription",
   "section_break_notes",
@@ -111,6 +112,15 @@
    "label": "Billing Mode",
    "options": "None\nRecurring\nOne-time",
    "default": "None"
+  },
+  {
+   "fieldname": "billing_interval",
+   "fieldtype": "Select",
+   "label": "Billing Interval",
+   "options": "Monthly\nAnnual",
+   "default": "Monthly",
+   "depends_on": "eval:doc.billing_mode=='Recurring'",
+   "description": "Monthly services bill every month; annual services bill in their renewal month, with pro-rata additions in between."
   },
   {
    "fieldname": "column_break_billing",

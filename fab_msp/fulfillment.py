@@ -51,9 +51,13 @@ def _fulfill(ticket_name: str) -> dict:
 
     _apply_quantity(cs, qty)
 
-    # consolidated customers defer: the addition goes on the monthly invoice
+    # consolidated customers defer: the addition goes on the monthly invoice.
+    # a monthly-recurring seat needs no separate charge (it joins the monthly
+    # base next run); annual and one-time additions are recorded as charges.
     if _is_consolidated(t.customer):
-        charge = _defer_charge(t, cs, rules["billing_item"], qty, unit, desc)
+        charge = None
+        if not (rules["mode"] == "Recurring" and rules["interval"] == "Monthly"):
+            charge = _defer_charge(t, cs, rules["billing_item"], qty, unit, desc)
         _link(t, customer_service=cs, status="Deferred")
         result.update(billing_charge=charge, deferred=True)
         return result
@@ -97,14 +101,15 @@ def _defer_charge(t, cs, item, qty, unit, description) -> str:
 
 
 def _rules(t) -> dict:
-    r = {"billable": 0, "billing_item": None, "mode": "One-time", "coterm": 0,
-         "cmdb_effect": "None", "service_type": None}
+    r = {"billable": 0, "billing_item": None, "mode": "One-time", "interval": "Monthly",
+         "coterm": 0, "cmdb_effect": "None", "service_type": None}
     if t.ticket_type:
         tt = frappe.get_cached_doc("HD Ticket Type", t.ticket_type)
         r.update(
             billable=tt.get("fab_billable"),
             billing_item=tt.get("fab_billing_item"),
             mode=tt.get("fab_billing_mode") or "One-time",
+            interval=tt.get("fab_billing_interval") or "Monthly",
             coterm=tt.get("fab_coterm_prorate"),
             cmdb_effect=tt.get("fab_cmdb_effect") or "None",
             service_type=tt.get("fab_service_type"),
@@ -139,6 +144,8 @@ def _create_service(t, rules):
             "service_type": rules["service_type"],
             "service_label": t.subject or f"Service for {t.name}",
             "billing_item": rules["billing_item"],
+            "billing_mode": "Recurring" if rules["mode"] == "Recurring" else rules["mode"],
+            "billing_interval": rules["interval"],
             "quantity": 0,
         }
     )

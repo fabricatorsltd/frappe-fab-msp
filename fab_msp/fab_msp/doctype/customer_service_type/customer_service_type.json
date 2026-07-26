@@ -11,6 +11,7 @@
   "column_break_main",
   "default_billing_item",
   "default_billing_mode",
+  "default_billing_interval",
   "section_break_desc",
   "description"
  ],
@@ -49,6 +50,13 @@
    "label": "Default Billing Mode",
    "options": "None\nRecurring\nOne-time",
    "default": "None"
+  },
+  {
+   "fieldname": "default_billing_interval",
+   "fieldtype": "Select",
+   "label": "Default Billing Interval",
+   "options": "Monthly\nAnnual",
+   "default": "Monthly"
   },
   {
    "fieldname": "section_break_desc",

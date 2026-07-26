@@ -17,3 +17,5 @@ class CustomerService(Document):
             self.billing_item = service_type.default_billing_item
         if (not self.billing_mode or self.billing_mode == "None") and service_type.default_billing_mode:
             self.billing_mode = service_type.default_billing_mode
+        if not self.billing_interval and service_type.get("default_billing_interval"):
+            self.billing_interval = service_type.default_billing_interval

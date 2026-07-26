@@ -104,12 +104,23 @@ The customer's **MSP Billing Mode** decides how additions are invoiced:
 - **Consolidated**: additions do not invoice on their own. They provision the
   service and record an `MSP Billing Charge` (status Deferred on the ticket).
 
+Each recurring service has a **Billing Interval** (Monthly or Annual), so one
+consolidated invoice can mix frequencies (e.g. Acronis and IT support monthly,
+M365 annual with pro-rata). The item price is the rate for that interval (a
+monthly item price for monthly services, an annual one for annual services).
+
 For consolidated customers, run the month-end consolidation
 (`fab_msp.billing.generate_consolidated_invoices`, or per customer with
-`generate_for_customer`): it creates one **draft** invoice per customer with the
-active recurring pools at the monthly rate plus the period's additions, and
-excludes the newly added seats from the base so nothing is billed twice. Review
-and submit the draft manually.
+`generate_for_customer`). It creates one **draft** invoice per customer with:
+
+- monthly services at their rate, every month;
+- annual services at their rate, only in their renewal month (matched by
+  month-of-year, so they recur each anniversary);
+- the period's deferred additions (annual pro-rata to the co-term date; monthly
+  seats need no separate line, they join the base next month).
+
+Newly added seats are excluded from the same-period base so nothing is billed
+twice. Review and submit the draft manually.
 
 ## Known configuration gaps
 

@@ -19,7 +19,7 @@ A configuration item: one managed service for one customer. Naming `CS-.#####`.
 - service label, identifier (UPN / serial / URL)
 - status: Active / Suspended / Terminated
 - quantity, start date, renewal date (co-termination date of the SKU pool)
-- billing item, billing mode, subscription (set by fulfillment)
+- billing item, billing mode, billing interval (Monthly / Annual), subscription
 
 On validate, billing item and mode are inherited from the service type when
 blank. The SKU pool for co-termination is the Active Customer Service with the

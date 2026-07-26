@@ -316,6 +316,15 @@ def get_custom_fields() -> dict:
                 "insert_after": "fab_billing_item",
             },
             {
+                "fieldname": "fab_billing_interval",
+                "label": "Billing Interval",
+                "fieldtype": "Select",
+                "options": "Monthly\nAnnual",
+                "default": "Monthly",
+                "depends_on": "eval:doc.fab_billing_mode=='Recurring'",
+                "insert_after": "fab_billing_mode",
+            },
+            {
                 "fieldname": "fab_coterm_prorate",
                 "label": "Co-terminate & pro-rate",
                 "fieldtype": "Check",
