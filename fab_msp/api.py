@@ -91,4 +91,8 @@ def set_ticket_approval(ticket: str, decision: str) -> str:
         frappe.throw(_("You are not permitted to approve this request."))
 
     t.db_set("fab_approval_status", decision)
+    if decision == "Approved":
+        from fab_msp.fulfillment import fulfill_ticket
+
+        fulfill_ticket(t.name)
     return decision
