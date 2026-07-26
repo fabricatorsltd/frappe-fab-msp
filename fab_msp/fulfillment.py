@@ -35,7 +35,7 @@ def _fulfill(ticket_name: str) -> dict:
         _link(t, customer_service=cs)
         return result
 
-    rate = _annual_rate(rules["billing_item"], cs)
+    rate = _customer_rate(t.customer, rules["billing_item"], cs)
     qty = 1
 
     if rules["mode"] == "One-time":
@@ -52,7 +52,7 @@ def _fulfill(ticket_name: str) -> dict:
             f"Pro-rata to {cs.renewal_date} ({days} days)",
         )
         _apply_quantity(cs, qty)  # joins the pool; recurring picks it up at renewal
-        sub = _ensure_subscription(t, cs, rules["billing_item"], rate)
+        sub = _ensure_subscription(t, cs, rules["billing_item"])
         _link(t, customer_service=cs, sales_invoice=inv, subscription=sub, status="Subscribed")
         result.update(sales_invoice=inv, subscription=sub, prorata_unit=unit, days=days)
 
@@ -60,7 +60,7 @@ def _fulfill(ticket_name: str) -> dict:
         if cs and not cs.renewal_date:
             cs.db_set("renewal_date", add_days(today(), 365))
         _apply_quantity(cs, qty)
-        sub = _ensure_subscription(t, cs, rules["billing_item"], rate)
+        sub = _ensure_subscription(t, cs, rules["billing_item"])
         _link(t, customer_service=cs, subscription=sub, status="Subscribed")
         result["subscription"] = sub
 
@@ -122,20 +122,31 @@ def _apply_quantity(cs, qty):
         cs.db_set("quantity", (cs.quantity or 0) + qty)
 
 
-def _annual_rate(item, cs) -> float:
+def _customer_price_list(customer) -> str:
+    return (
+        (customer and frappe.db.get_value("Customer", customer, "default_price_list"))
+        or frappe.db.get_single_value("Selling Settings", "selling_price_list")
+        or "Standard Selling"
+    )
+
+
+def _customer_rate(customer, item, cs) -> float:
+    """Annual rate from the customer's own price list, falling back to the
+    default list, then the item's standard rate."""
     if cs and cs.get("billing_item"):
         item = cs.billing_item or item
     if not item:
         return 0.0
-    price = frappe.get_all(
-        "Item Price",
-        filters={"item_code": item, "selling": 1},
-        fields=["price_list_rate"],
-        order_by="valid_from desc",
-        limit=1,
-    )
-    if price:
-        return flt(price[0].price_list_rate)
+    for price_list in (_customer_price_list(customer), "Standard Selling"):
+        price = frappe.get_all(
+            "Item Price",
+            filters={"item_code": item, "selling": 1, "price_list": price_list},
+            fields=["price_list_rate"],
+            order_by="valid_from desc",
+            limit=1,
+        )
+        if price:
+            return flt(price[0].price_list_rate)
     return flt(frappe.db.get_value("Item", item, "standard_rate"))
 
 
@@ -144,18 +155,20 @@ def _sales_invoice(t, item, qty, rate, description) -> str:
         {
             "doctype": "Sales Invoice",
             "customer": _erp_customer(t.customer),
+            "ignore_pricing_rule": 1,
             "items": [
                 {
                     "item_code": item,
                     "qty": qty,
                     "rate": rate,
+                    "price_list_rate": rate,
                     "description": f"{item} - {description}",
                 }
             ],
             "remarks": f"Auto-generated from ticket {t.name}",
         }
     )
-    template = _sales_tax_template()
+    template = _customer_tax_template(_erp_customer(t.customer))
     if template:
         from erpnext.controllers.accounts_controller import get_taxes_and_charges
 
@@ -167,11 +180,11 @@ def _sales_invoice(t, item, qty, rate, description) -> str:
     return si.name
 
 
-def _ensure_subscription(t, cs, item, rate) -> str | None:
+def _ensure_subscription(t, cs, item) -> str | None:
     customer = _erp_customer(t.customer)
     if not customer or not item:
         return None
-    plan = _ensure_plan(item, rate)
+    plan = _ensure_plan(item, _customer_price_list(t.customer))
     existing = frappe.get_all(
         "Subscription",
         filters={"party_type": "Customer", "party": customer, "status": ["!=", "Cancelled"]},
@@ -201,17 +214,23 @@ def _ensure_subscription(t, cs, item, rate) -> str | None:
     return sub.name
 
 
-def _ensure_plan(item, rate) -> str:
-    name = frappe.db.get_value("Subscription Plan", {"item": item}, "name")
-    if name:
-        return name
+def _ensure_plan(item, price_list) -> str:
+    """One plan per (item, price list) so each customer's recurring price comes
+    from their own list rather than a shared fixed cost."""
+    existing = frappe.get_all(
+        "Subscription Plan",
+        filters={"item": item, "price_list": price_list},
+        limit=1,
+    )
+    if existing:
+        return existing[0].name
     plan = frappe.get_doc(
         {
             "doctype": "Subscription Plan",
-            "plan_name": f"{item} (annual)",
+            "plan_name": f"{item} @ {price_list} (annual)",
             "item": item,
-            "price_determination": "Fixed Rate",
-            "cost": flt(rate),
+            "price_determination": "Based On Price List",
+            "price_list": price_list,
             "billing_interval": "Year",
             "billing_interval_count": 1,
         }
@@ -221,12 +240,29 @@ def _ensure_plan(item, rate) -> str:
     return plan.name
 
 
-def _sales_tax_template() -> str | None:
-    """Pick the sales tax template for auto-generated invoices.
+def _customer_tax_template(customer) -> str | None:
+    """Resolve the sales tax template for a customer.
 
-    Prefers the company default; otherwise the standard-rate (22%) template.
-    TODO: make this configurable per Customer Service Type for mixed rates.
+    Uses the customer's Tax Category via Tax Rules (so a foreign customer maps to
+    a 0%-with-natura template, a domestic one to standard VAT). Falls back to the
+    company default, then the standard-rate (22%) template.
     """
+    tax_category = customer and frappe.db.get_value("Customer", customer, "tax_category")
+    if tax_category:
+        by_category = frappe.db.get_value(
+            "Sales Taxes and Charges Template", {"tax_category": tax_category, "disabled": 0}, "name"
+        )
+        if by_category:
+            return by_category
+        from erpnext.accounts.doctype.tax_rule.tax_rule import get_tax_template
+
+        resolved = get_tax_template(
+            today(),
+            {"tax_category": tax_category, "customer": customer, "use_for_shopping_cart": 0},
+        )
+        if resolved:
+            return resolved
+
     template = frappe.db.get_value(
         "Sales Taxes and Charges Template", {"is_default": 1, "disabled": 0}, "name"
     )
