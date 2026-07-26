@@ -47,6 +47,45 @@ def generate_consolidated_invoices(posting_date: str | None = None) -> list[str]
     return created
 
 
+def build_consolidated_items(posting_date, pools, charges, rate_fn) -> list[dict]:
+    """Pure line builder for a consolidated invoice.
+
+    - monthly services bill every month; annual only in their renewal month
+      (matched by month-of-year);
+    - the base excludes seats added this period (they arrive as addition lines);
+    - deferred additions are appended as their own lines.
+    """
+    added_by_pool: dict[str, float] = {}
+    for c in charges:
+        if c.get("customer_service"):
+            added_by_pool[c["customer_service"]] = added_by_pool.get(c["customer_service"], 0) + flt(c["qty"])
+
+    month_of_year = posting_date[5:7]
+    items: list[dict] = []
+    for pool in pools:
+        base_qty = flt(pool["quantity"]) - added_by_pool.get(pool["name"], 0)
+        if not pool.get("billing_item") or base_qty <= 0:
+            continue
+        rate = flt(rate_fn(pool["billing_item"]))
+        if (pool.get("billing_interval") or "Monthly") == "Annual":
+            if not pool.get("renewal_date") or str(pool["renewal_date"])[5:7] != month_of_year:
+                continue
+            description = f"{pool['service_label']} - annual {str(pool['renewal_date'])[:4]}"
+        else:
+            description = f"{pool['service_label']} - recurring {posting_date[:7]}"
+        items.append(
+            {"item_code": pool["billing_item"], "qty": base_qty, "rate": rate,
+             "price_list_rate": rate, "description": description}
+        )
+
+    for c in charges:
+        items.append(
+            {"item_code": c["item"], "qty": c["qty"], "rate": c["rate"],
+             "price_list_rate": c["rate"], "description": c.get("description")}
+        )
+    return items
+
+
 @frappe.whitelist()
 def generate_for_customer(customer: str, posting_date: str | None = None) -> str | None:
     """One draft invoice for a customer: recurring base of active pools plus the
@@ -60,54 +99,17 @@ def generate_for_customer(customer: str, posting_date: str | None = None) -> str
         filters={"customer": erp, "status": "Unbilled"},
         fields=["name", "item", "qty", "rate", "description", "customer_service"],
     )
-    added_by_pool: dict[str, float] = {}
-    for c in charges:
-        if c.customer_service:
-            added_by_pool[c.customer_service] = added_by_pool.get(c.customer_service, 0) + flt(c.qty)
-
-    items = []
-
-    # recurring base at each service's own interval, at pre-addition quantity.
-    # Monthly services bill every month; annual services only in their renewal
-    # month (matched by month-of-year so they recur each anniversary).
-    month_of_year = posting_date[5:7]
-    for pool in frappe.get_all(
+    pools = frappe.get_all(
         "Customer Service",
         filters={"customer": customer, "status": "Active", "billing_mode": "Recurring"},
         fields=["name", "billing_item", "quantity", "service_label", "billing_interval", "renewal_date"],
-    ):
-        base_qty = flt(pool.quantity) - added_by_pool.get(pool.name, 0)
-        if not pool.billing_item or base_qty <= 0:
-            continue
-        rate = flt(_customer_rate(customer, pool.billing_item, None))
-        if (pool.billing_interval or "Monthly") == "Annual":
-            if not pool.renewal_date or str(pool.renewal_date)[5:7] != month_of_year:
-                continue
-            description = f"{pool.service_label} - annual {str(pool.renewal_date)[:4]}"
-        else:
-            description = f"{pool.service_label} - recurring {posting_date[:7]}"
-        items.append(
-            {
-                "item_code": pool.billing_item,
-                "qty": base_qty,
-                "rate": rate,
-                "price_list_rate": rate,
-                "description": description,
-            }
-        )
-
-    # this period's additions
-    for c in charges:
-        items.append(
-            {
-                "item_code": c.item,
-                "qty": c.qty,
-                "rate": c.rate,
-                "price_list_rate": c.rate,
-                "description": c.description,
-            }
-        )
-
+    )
+    items = build_consolidated_items(
+        posting_date,
+        [dict(p) for p in pools],
+        [dict(c) for c in charges],
+        lambda item: _customer_rate(customer, item, None),
+    )
     if not items:
         return None
 
