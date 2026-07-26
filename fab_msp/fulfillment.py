@@ -36,7 +36,7 @@ def _fulfill(ticket_name: str) -> dict:
         return result
 
     rate = _customer_rate(t.customer, rules["billing_item"], cs)
-    qty = 1
+    qty = int(t.get("fab_quantity") or 1)
 
     if rules["mode"] == "One-time":
         inv = _sales_invoice(t, rules["billing_item"], qty, rate, "One-time charge")

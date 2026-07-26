@@ -26,3 +26,20 @@ def apply_service_rules(doc, method=None):
 
     if doc.get("fab_billing_status") in (None, "", "Not Billable"):
         doc.fab_billing_status = "Pending" if ticket_type.get("fab_billable") else "Not Billable"
+
+
+def maybe_fulfill_on_close(doc, method=None):
+    """Fulfil a billable request that needs no approval when the ticket closes.
+
+    Requests that require approval are fulfilled on approval instead. Fulfillment
+    is idempotent, so a request already billed on approval is a no-op here.
+    """
+    if doc.get("status") not in ("Resolved", "Closed"):
+        return
+    if doc.get("fab_billing_status") != "Pending":
+        return
+    if doc.get("fab_approval_status") not in ("Not Required", "Approved"):
+        return
+    from fab_msp.fulfillment import fulfill_ticket
+
+    fulfill_ticket(doc.name)

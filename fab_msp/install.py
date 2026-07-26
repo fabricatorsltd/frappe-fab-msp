@@ -8,6 +8,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 # is how we extend the agent view without touching the Vue frontend.
 AGENT_TEMPLATE_FIELDS = [
     "fab_customer_service",
+    "fab_quantity",
     "fab_approval_status",
     "fab_billing_status",
     "fab_sales_invoice",
@@ -339,6 +340,14 @@ def get_custom_fields() -> dict:
                 "options": "Customer Service",
                 "insert_after": "fab_service_section",
                 "description": "The service this request acts on (for modify/link requests).",
+            },
+            {
+                "fieldname": "fab_quantity",
+                "label": "Quantity",
+                "fieldtype": "Int",
+                "default": "1",
+                "insert_after": "fab_customer_service",
+                "description": "Seats/units this request adds; drives billing quantity.",
             },
             {
                 "fieldname": "fab_approval_status",

@@ -142,6 +142,7 @@ after_migrate = "fab_msp.install.after_migrate"
 doc_events = {
 	"HD Ticket": {
 		"validate": "fab_msp.ticket.apply_service_rules",
+		"on_update": "fab_msp.ticket.maybe_fulfill_on_close",
 	}
 }
 
