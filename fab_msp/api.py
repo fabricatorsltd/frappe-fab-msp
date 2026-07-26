@@ -3,6 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe import _
 from helpdesk.helpdesk.doctype.hd_ticket.hd_ticket import _is_customer_manager
+from helpdesk.utils import get_helpdesk_url
 
 INTERNAL_APPROVER_ROLES = {"Agent Manager", "System Manager"}
 
@@ -66,6 +67,87 @@ def can_approve_ticket(ticket: str) -> bool:
     if t.get("fab_approval_status") != "Pending":
         return False
     return _can_approve(t, frappe.session.user)
+
+
+@frappe.whitelist()
+def request_approval(ticket: str) -> str:
+    """Send a provisioned request to its approver.
+
+    Only valid once a service is linked and the request is Awaiting Service. Sets
+    Pending and notifies the approver(s), so a manager is asked only for a real,
+    completed service.
+    """
+    t = frappe.get_doc("HD Ticket", ticket)
+    if not t.get("fab_customer_service"):
+        frappe.throw(_("Provision or link a service before requesting approval."))
+    if t.get("fab_approval_status") != "Awaiting Service":
+        frappe.throw(_("This request is not awaiting approval."))
+    approval_by, _effect = _ticket_type_rules(t)
+    t.db_set("fab_approval_status", "Pending")
+    _notify_approvers(t, approval_by)
+    return "Pending"
+
+
+def _approver_emails(ticket_doc, approval_by) -> list[str]:
+    if approval_by == "Customer Manager":
+        if not ticket_doc.customer or not frappe.db.exists("HD Customer", ticket_doc.customer):
+            return []
+        customer = frappe.get_doc("HD Customer", ticket_doc.customer)
+        emails = []
+        for member in customer.get("contacts", []):
+            if member.get("is_manager") and member.contact_name:
+                email = frappe.db.get_value("Contact", member.contact_name, "email_id")
+                if email:
+                    emails.append(email)
+        return list(dict.fromkeys(emails))
+    users = set()
+    for role in INTERNAL_APPROVER_ROLES:
+        users.update(
+            frappe.get_all("Has Role", filters={"role": role, "parenttype": "User"}, pluck="parent")
+        )
+    return [u for u in users if "@" in u and frappe.db.get_value("User", u, "enabled")]
+
+
+def _notify_approvers(ticket_doc, approval_by) -> None:
+    recipients = _approver_emails(ticket_doc, approval_by)
+    if not recipients:
+        return
+    path = "/helpdesk/my-tickets/" if approval_by == "Customer Manager" else "/helpdesk/tickets/"
+    context = {
+        "subject": ticket_doc.subject or ticket_doc.name,
+        "ticket": ticket_doc.name,
+        "link": get_helpdesk_url(path + ticket_doc.name),
+    }
+    template = (
+        frappe.get_doc("Email Template", "MSP Approval Requested")
+        if frappe.db.exists("Email Template", "MSP Approval Requested")
+        else None
+    )
+    default_lang = frappe.db.get_single_value("System Settings", "language") or "en"
+    original_lang = frappe.local.lang
+
+    # render per recipient so each gets the mail in their own language
+    for recipient in recipients:
+        frappe.local.lang = frappe.db.get_value("User", recipient, "language") or default_lang
+        try:
+            if template:
+                subject = frappe.render_template(template.subject, context)
+                message = frappe.render_template(template.response_html or template.response, context)
+            else:
+                subject = _("Approval requested") + ": " + context["subject"]
+                message = (
+                    "<p>" + _("A service request needs your approval.") + "</p>"
+                    + f'<p><a href="{context["link"]}">{ticket_doc.name}</a></p>'
+                )
+            frappe.sendmail(
+                recipients=[recipient],
+                subject=subject,
+                message=message,
+                reference_doctype="HD Ticket",
+                reference_name=ticket_doc.name,
+            )
+        finally:
+            frappe.local.lang = original_lang
 
 
 @frappe.whitelist()

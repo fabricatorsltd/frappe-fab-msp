@@ -60,12 +60,16 @@ the natura, co-terminated to the pool renewal date.
 ## Day to day
 
 1. A ticket is raised (email, portal, agent) and given a request type.
-2. On save the ticket derives its approval and billing status from the type.
-3. For `Create` requests the agent can "Create service" from the ticket; for
-   `Modify` they link the existing service.
-4. If approval is required, the approver (customer manager, or our staff) uses
-   Approve/Reject; the button shows only to who may decide.
-5. On approval of a billable request the app provisions/updates the service and
+2. On save the ticket derives its billing status; a request needing approval
+   sits at "Awaiting Service" (no manager is notified yet).
+3. The agent provisions the service: "Create service" opens the new service form
+   to complete its details, or "Modify" links an existing one. "Open service"
+   navigates to it.
+4. The agent clicks "Request approval": the request goes Pending and the
+   approver is emailed. A manager is asked only for a real, completed service.
+5. The approver (customer manager, or our staff) uses Approve/Reject; the button
+   shows only to who may decide.
+6. On approval of a billable request the app provisions/updates the service and
    creates the ERP artefacts:
    - **Co-terminate & pro-rate**: adds the seat to the existing SKU pool and
      issues a pro-rata Sales Invoice to the pool renewal date, plus a
@@ -73,6 +77,15 @@ the natura, co-terminated to the pool renewal date.
    - **Recurring** (new pool): a Subscription.
    - **One-time**: a Sales Invoice.
    Invoices are left as **draft** for review before they go to SdI.
+
+## Notifications and languages
+
+The approval-request email uses the **Email Template** `MSP Approval Requested`;
+edit it (subject/body, Jinja) to change the wording without code. It is rendered
+in each recipient's own language.
+
+The UI ships English (source), Italian and French. To adjust wording, edit
+`locale/it.po` / `locale/fr.po` and run `bench compile-po-to-mo --app fab_msp`.
 
 ## Known configuration gaps
 

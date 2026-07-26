@@ -24,7 +24,10 @@ async function setupForm({ doc, call, updateField, createToast }) {
   const err = (title) => createToast({ title, icon: "x", iconClasses: "text-red-600" });
   const actions = [];
 
-  if (doc.ticket_type && !doc.fab_customer_service) {
+  const openDoc = (dt, name) =>
+    window.open(window.location.origin + "/app/" + dt + "/" + encodeURIComponent(name), "_blank");
+
+  if (!doc.fab_customer_service) {
     actions.push({
       label: t("Create service"),
       iconLeft: "plus-circle",
@@ -32,9 +35,32 @@ async function setupForm({ doc, call, updateField, createToast }) {
         try {
           const name = await call("fab_msp.api.create_service_from_ticket", { ticket: doc.name });
           updateField("fab_customer_service", name);
-          ok(t("Service created") + ": " + name);
+          ok(t("Service created") + " - " + t("complete its details"));
+          openDoc("customer-service", name);
         } catch (e) {
           err(e.message || t("Could not create service"));
+        }
+      },
+    });
+  } else {
+    actions.push({
+      label: t("Open service"),
+      iconLeft: "external-link",
+      onClick: () => openDoc("customer-service", doc.fab_customer_service),
+    });
+  }
+
+  if (doc.fab_customer_service && doc.fab_approval_status === "Awaiting Service") {
+    actions.push({
+      label: t("Request approval"),
+      iconLeft: "send",
+      onClick: async () => {
+        try {
+          await call("fab_msp.api.request_approval", { ticket: doc.name });
+          updateField("fab_approval_status", "Pending");
+          ok(t("Approval requested"));
+        } catch (e) {
+          err(e.message || t("Could not request approval"));
         }
       },
     });
@@ -74,16 +100,47 @@ async function setupForm({ doc, call, updateField, createToast }) {
 """
 
 
+EMAIL_TEMPLATE_NAME = "MSP Approval Requested"
+
+# Editable by operators afterwards. Jinja with {{ _(...) }} so it localises to
+# the recipient's language; context: subject, link, ticket.
+EMAIL_TEMPLATE_SUBJECT = '{{ _("Approval requested") }}: {{ subject }}'
+EMAIL_TEMPLATE_BODY = (
+    '<p>{{ _("A service request needs your approval.") }}</p>'
+    '<p><a href="{{ link }}">{{ ticket }}</a></p>'
+)
+
+
 def after_install():
     ensure_custom_fields()
     ensure_ticket_template_fields()
     ensure_form_script()
+    ensure_email_template()
 
 
 def after_migrate():
     ensure_custom_fields()
     ensure_ticket_template_fields()
     ensure_form_script()
+    ensure_email_template()
+
+
+def ensure_email_template():
+    """Seed the approval-request email as an editable Email Template.
+
+    Created once; not overwritten on migrate so operator edits survive."""
+    if not frappe.db.exists("DocType", "Email Template"):
+        return
+    if frappe.db.exists("Email Template", EMAIL_TEMPLATE_NAME):
+        return
+    doc = frappe.new_doc("Email Template")
+    doc.name = EMAIL_TEMPLATE_NAME
+    doc.subject = EMAIL_TEMPLATE_SUBJECT
+    doc.use_html = 1
+    doc.response_html = EMAIL_TEMPLATE_BODY
+    doc.response = EMAIL_TEMPLATE_BODY
+    doc.flags.ignore_permissions = True
+    doc.insert()
 
 
 FORM_SCRIPT_PORTAL_NAME = "MSP Ticket Approval (Portal)"
@@ -287,7 +344,7 @@ def get_custom_fields() -> dict:
                 "fieldname": "fab_approval_status",
                 "label": "Approval Status",
                 "fieldtype": "Select",
-                "options": "Not Required\nPending\nApproved\nRejected",
+                "options": "Not Required\nAwaiting Service\nPending\nApproved\nRejected",
                 "default": "Not Required",
                 "read_only": 1,
                 "insert_after": "fab_customer_service",

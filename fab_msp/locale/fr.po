@@ -6,8 +6,8 @@ msgstr ""
 "POT-Creation-Date: 2026-07-26 00:00+0000\n"
 "PO-Revision-Date: 2026-07-26 00:00+0000\n"
 "Last-Translator: FAB Team\n"
-"Language: it\n"
-"Language-Team: Italian\n"
+"Language: fr\n"
+"Language-Team: French\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
@@ -15,152 +15,152 @@ msgstr ""
 "Generated-By: Babel 2.16.0\n"
 
 msgid "Create service"
-msgstr "Crea servizio"
+msgstr "Créer le service"
 
 msgid "Open service"
-msgstr "Apri servizio"
+msgstr "Ouvrir le service"
 
 msgid "Request approval"
-msgstr "Richiedi approvazione"
+msgstr "Demander l'approbation"
 
 msgid "Approve"
-msgstr "Approva"
+msgstr "Approuver"
 
 msgid "Reject"
-msgstr "Rifiuta"
+msgstr "Rejeter"
 
 msgid "Service created"
-msgstr "Servizio creato"
+msgstr "Service créé"
 
 msgid "complete its details"
-msgstr "completa i dati"
+msgstr "complétez ses informations"
 
 msgid "Approval requested"
-msgstr "Approvazione richiesta"
+msgstr "Approbation demandée"
 
 msgid "Request approved"
-msgstr "Richiesta approvata"
+msgstr "Demande approuvée"
 
 msgid "Request rejected"
-msgstr "Richiesta rifiutata"
+msgstr "Demande rejetée"
 
 msgid "Could not create service"
-msgstr "Impossibile creare il servizio"
+msgstr "Impossible de créer le service"
 
 msgid "Could not request approval"
-msgstr "Impossibile richiedere l'approvazione"
+msgstr "Impossible de demander l'approbation"
 
 msgid "Could not approve"
-msgstr "Impossibile approvare"
+msgstr "Impossible d'approuver"
 
 msgid "Could not reject"
-msgstr "Impossibile rifiutare"
+msgstr "Impossible de rejeter"
 
 msgid "This ticket has no customer set."
-msgstr "Questo ticket non ha un cliente impostato."
+msgstr "Ce ticket n'a pas de client défini."
 
 msgid "This ticket is already linked to a service."
-msgstr "Questo ticket è già collegato a un servizio."
+msgstr "Ce ticket est déjà lié à un service."
 
 msgid "The ticket type has no Service Type configured; set it on the ticket type first."
-msgstr "Il tipo di richiesta non ha un Service Type configurato; impostalo prima sul tipo di richiesta."
+msgstr "Le type de ticket n'a pas de type de service configuré ; définissez-le d'abord sur le type de ticket."
 
 msgid "Invalid decision."
-msgstr "Decisione non valida."
+msgstr "Décision invalide."
 
 msgid "You are not permitted to approve this request."
-msgstr "Non hai i permessi per approvare questa richiesta."
+msgstr "Vous n'êtes pas autorisé à approuver cette demande."
 
 msgid "This request is not pending approval."
-msgstr "Questa richiesta non è in attesa di approvazione."
+msgstr "Cette demande n'est pas en attente d'approbation."
 
 msgid "Provision or link a service before requesting approval."
-msgstr "Provisiona o collega un servizio prima di richiedere l'approvazione."
+msgstr "Provisionnez ou liez un service avant de demander l'approbation."
 
 msgid "This request is not awaiting approval."
-msgstr "Questa richiesta non è in attesa di servizio."
+msgstr "Cette demande n'est pas en attente de service."
 
 msgid "Link a service before approving this request."
-msgstr "Collega un servizio prima di approvare questa richiesta."
+msgstr "Liez un service avant d'approuver cette demande."
 
 msgid "A service request needs your approval."
-msgstr "Una richiesta di servizio necessita della tua approvazione."
+msgstr "Une demande de service nécessite votre approbation."
 
 msgid "Customer Service"
-msgstr "Servizio cliente"
+msgstr "Service client"
 
 msgid "Customer Service Type"
-msgstr "Tipo servizio cliente"
+msgstr "Type de service client"
 
 msgid "Service Type"
-msgstr "Tipo servizio"
+msgstr "Type de service"
 
 msgid "Approval Status"
-msgstr "Stato approvazione"
+msgstr "Statut d'approbation"
 
 msgid "Billing Status"
-msgstr "Stato fatturazione"
+msgstr "Statut de facturation"
 
 msgid "Subscription"
-msgstr "Abbonamento"
+msgstr "Abonnement"
 
 msgid "Requires Approval"
-msgstr "Richiede approvazione"
+msgstr "Nécessite une approbation"
 
 msgid "Approval By"
-msgstr "Approvazione da"
+msgstr "Approbation par"
 
 msgid "CMDB Effect"
-msgstr "Effetto CMDB"
+msgstr "Effet CMDB"
 
 msgid "Billing Item"
-msgstr "Articolo di fatturazione"
+msgstr "Article de facturation"
 
 msgid "Billing Mode"
-msgstr "Modalità di fatturazione"
+msgstr "Mode de facturation"
 
 msgid "Co-terminate & pro-rate"
-msgstr "Co-termine e pro-rata"
+msgstr "Co-résiliation et prorata"
 
 msgid "Managed Service"
-msgstr "Servizio gestito"
+msgstr "Service géré"
 
 msgid "Service Request Rules"
-msgstr "Regole richiesta servizio"
+msgstr "Règles de demande de service"
 
 msgid "Default Billing Item"
-msgstr "Articolo di fatturazione predefinito"
+msgstr "Article de facturation par défaut"
 
 msgid "Default Billing Mode"
-msgstr "Modalità di fatturazione predefinita"
+msgstr "Mode de facturation par défaut"
 
 msgid "Renewal Date"
-msgstr "Data di rinnovo"
+msgstr "Date de renouvellement"
 
 msgid "Awaiting Service"
-msgstr "In attesa di servizio"
+msgstr "En attente de service"
 
 msgid "Not Required"
-msgstr "Non richiesto"
+msgstr "Non requis"
 
 msgid "Not Billable"
-msgstr "Non fatturabile"
+msgstr "Non facturable"
 
 msgid "Invoiced"
-msgstr "Fatturato"
+msgstr "Facturé"
 
 msgid "Subscribed"
-msgstr "Abbonato"
+msgstr "Abonné"
 
 msgid "Internal Manager"
-msgstr "Manager interno"
+msgstr "Responsable interne"
 
 msgid "Customer Manager"
-msgstr "Manager cliente"
+msgstr "Responsable client"
 
 msgid "One-time"
-msgstr "Una tantum"
+msgstr "Ponctuel"
 
 msgid "Recurring"
-msgstr "Ricorrente"
+msgstr "Récurrent"
 

@@ -36,7 +36,7 @@ same customer and billing item.
 ### HD Ticket (request instance)
 
 - `fab_customer_service` (the service acted on)
-- `fab_approval_status` (Not Required / Pending / Approved / Rejected)
+- `fab_approval_status` (Not Required / Awaiting Service / Pending / Approved / Rejected)
 - `fab_billing_status` (Not Billable / Pending / Invoiced / Subscribed)
 - `fab_sales_invoice`, `fab_subscription`
 
@@ -54,10 +54,18 @@ Both gate Approve/Reject on `fab_msp.api.can_approve_ticket`.
 
 - `fab_msp.ticket.apply_service_rules` (HD Ticket validate): derives approval and
   billing status from the type.
-- `fab_msp.api`: `create_service_from_ticket`, `can_approve_ticket`,
-  `set_ticket_approval`.
+- `fab_msp.api`: `create_service_from_ticket`, `request_approval`,
+  `can_approve_ticket`, `set_ticket_approval`.
 - `fab_msp.fulfillment.fulfill_ticket`: provisioning + billing on approval, run
   as a system operation.
+
+## Notifications and i18n
+
+- `request_approval` emails the approver(s) using the editable Email Template
+  `MSP Approval Requested`, rendered per recipient in their own language.
+- All UI strings, toasts and messages go through the translation system. Source
+  is English (`msgid`); `locale/it.po` and `locale/fr.po` provide Italian and
+  French. Run `bench compile-po-to-mo --app fab_msp` after editing.
 
 ## External model reused
 
