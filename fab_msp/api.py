@@ -165,7 +165,7 @@ def set_ticket_approval(ticket: str, decision: str) -> str:
     if t.get("fab_approval_status") != "Pending":
         frappe.throw(_("This request is not pending approval."))
 
-    _, cmdb_effect = _ticket_type_rules(t)
+    _approval_by, cmdb_effect = _ticket_type_rules(t)
     if cmdb_effect == "Modify" and not t.get("fab_customer_service"):
         frappe.throw(_("Link a service before approving this request."))
 

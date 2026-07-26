@@ -367,7 +367,7 @@ def get_custom_fields() -> dict:
                 "fieldname": "fab_billing_status",
                 "label": "Billing Status",
                 "fieldtype": "Select",
-                "options": "Not Billable\nPending\nInvoiced\nSubscribed",
+                "options": "Not Billable\nPending\nDeferred\nInvoiced\nSubscribed",
                 "default": "Not Billable",
                 "read_only": 1,
                 "insert_after": "fab_service_col",
@@ -387,6 +387,19 @@ def get_custom_fields() -> dict:
                 "options": "Subscription",
                 "read_only": 1,
                 "insert_after": "fab_sales_invoice",
+            },
+        ],
+        # How the customer is billed for managed services
+        "Customer": [
+            {
+                "fieldname": "fab_msp_billing_mode",
+                "label": "MSP Billing Mode",
+                "fieldtype": "Select",
+                "options": "Immediate\nConsolidated",
+                "default": "Immediate",
+                "insert_after": "tax_category",
+                "description": "Immediate: each approved request is invoiced on its own. "
+                "Consolidated: additions defer to a monthly consolidated invoice.",
             },
         ],
     }

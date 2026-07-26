@@ -95,6 +95,22 @@ The UI ships English (source), Italian and French. To adjust wording, edit
   requests that do not need approval bill when the ticket is Resolved/Closed.
   Fulfillment is idempotent, so it never double-charges.
 
+## Billing mode (immediate vs consolidated)
+
+The customer's **MSP Billing Mode** decides how additions are invoiced:
+
+- **Immediate**: each approved request produces its own Sales Invoice (pro-rata
+  co-term, one-time, or a Subscription for a new recurring pool).
+- **Consolidated**: additions do not invoice on their own. They provision the
+  service and record an `MSP Billing Charge` (status Deferred on the ticket).
+
+For consolidated customers, run the month-end consolidation
+(`fab_msp.billing.generate_consolidated_invoices`, or per customer with
+`generate_for_customer`): it creates one **draft** invoice per customer with the
+active recurring pools at the monthly rate plus the period's additions, and
+excludes the newly added seats from the base so nothing is billed twice. Review
+and submit the draft manually.
+
 ## Known configuration gaps
 
 - The sales tax template for a customer with no tax category falls back to the

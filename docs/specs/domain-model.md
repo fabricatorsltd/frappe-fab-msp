@@ -25,6 +25,18 @@ On validate, billing item and mode are inherited from the service type when
 blank. The SKU pool for co-termination is the Active Customer Service with the
 same customer and billing item.
 
+### MSP Billing Charge
+
+A deferred charge for a consolidated customer, recorded by fulfillment instead of
+an immediate invoice. Naming `MSP-CHG-.#####`.
+
+- customer, posting date, status (Unbilled / Billed)
+- item, qty, rate, description
+- hd_ticket, customer_service, sales_invoice (set when consolidated)
+
+The month-end run (`fab_msp.billing`) rolls Unbilled charges plus the active
+recurring pools into one draft invoice per customer.
+
 ## Custom fields
 
 ### HD Ticket Type (service catalog)

@@ -21,7 +21,7 @@ def fulfill_ticket(ticket_name: str) -> dict:
 
 def _fulfill(ticket_name: str) -> dict:
     t = frappe.get_doc("HD Ticket", ticket_name)
-    if t.get("fab_sales_invoice") or t.get("fab_subscription"):
+    if t.get("fab_billing_status") in ("Invoiced", "Subscribed", "Deferred"):
         return {"skipped": "already fulfilled"}
 
     rules = _rules(t)
@@ -38,33 +38,62 @@ def _fulfill(ticket_name: str) -> dict:
     rate = _customer_rate(t.customer, rules["billing_item"], cs)
     qty = int(t.get("fab_quantity") or 1)
 
+    # the charge line for this addition, common to immediate and consolidated
     if rules["mode"] == "One-time":
-        inv = _sales_invoice(t, rules["billing_item"], qty, rate, "One-time charge")
-        _apply_quantity(cs, qty)
-        _link(t, customer_service=cs, sales_invoice=inv, status="Invoiced")
-        result["sales_invoice"] = inv
-
+        unit, desc = rate, "One-time charge"
     elif rules["coterm"] and cs and cs.renewal_date:
         days = max(date_diff(cs.renewal_date, today()), 0)
-        unit = flt(rate * days / 365.0, 2)
-        inv = _sales_invoice(
-            t, rules["billing_item"], qty, unit,
-            f"Pro-rata to {cs.renewal_date} ({days} days)",
-        )
-        _apply_quantity(cs, qty)  # joins the pool; recurring picks it up at renewal
-        sub = _ensure_subscription(t, cs, rules["billing_item"])
-        _link(t, customer_service=cs, sales_invoice=inv, subscription=sub, status="Subscribed")
-        result.update(sales_invoice=inv, subscription=sub, prorata_unit=unit, days=days)
-
-    else:  # plain recurring, new pool
+        unit, desc = flt(rate * days / 365.0, 2), f"Pro-rata to {cs.renewal_date} ({days} days)"
+    else:  # recurring, new pool
         if cs and not cs.renewal_date:
             cs.db_set("renewal_date", add_days(today(), 365))
-        _apply_quantity(cs, qty)
+        unit, desc = rate, "Recurring (first period)"
+
+    _apply_quantity(cs, qty)
+
+    # consolidated customers defer: the addition goes on the monthly invoice
+    if _is_consolidated(t.customer):
+        charge = _defer_charge(t, cs, rules["billing_item"], qty, unit, desc)
+        _link(t, customer_service=cs, status="Deferred")
+        result.update(billing_charge=charge, deferred=True)
+        return result
+
+    # immediate billing
+    if rules["mode"] == "One-time":
+        inv = _sales_invoice(t, rules["billing_item"], qty, unit, desc)
+        _link(t, customer_service=cs, sales_invoice=inv, status="Invoiced")
+        result["sales_invoice"] = inv
+    else:
+        inv = _sales_invoice(t, rules["billing_item"], qty, unit, desc) if (rules["coterm"] and cs and cs.renewal_date) else None
         sub = _ensure_subscription(t, cs, rules["billing_item"])
-        _link(t, customer_service=cs, subscription=sub, status="Subscribed")
-        result["subscription"] = sub
+        _link(t, customer_service=cs, sales_invoice=inv, subscription=sub, status="Subscribed")
+        result.update(sales_invoice=inv, subscription=sub)
 
     return result
+
+
+def _is_consolidated(customer) -> bool:
+    erp = _erp_customer(customer)
+    return bool(erp) and frappe.db.get_value("Customer", erp, "fab_msp_billing_mode") == "Consolidated"
+
+
+def _defer_charge(t, cs, item, qty, unit, description) -> str:
+    charge = frappe.get_doc(
+        {
+            "doctype": "MSP Billing Charge",
+            "customer": _erp_customer(t.customer),
+            "posting_date": today(),
+            "item": item,
+            "qty": qty,
+            "rate": unit,
+            "description": description,
+            "hd_ticket": t.name,
+            "customer_service": cs.name if cs else None,
+            "status": "Unbilled",
+        }
+    )
+    charge.insert(ignore_permissions=True)
+    return charge.name
 
 
 def _rules(t) -> dict:
