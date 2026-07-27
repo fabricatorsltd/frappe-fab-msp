@@ -45,17 +45,21 @@
  "links": [],
  "modified": "2026-07-26 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "Fab MSP",
+ "module": "MSP",
  "name": "MSP Consolidated Billing",
  "owner": "Administrator",
  "permissions": [
   {
    "role": "System Manager",
-   "create": 1, "read": 1, "write": 1, "delete": 1
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "delete": 1
   },
   {
    "role": "Accounts Manager",
-   "read": 1, "write": 1
+   "read": 1,
+   "write": 1
   }
  ],
  "sort_field": "modified",

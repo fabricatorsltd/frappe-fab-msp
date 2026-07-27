@@ -114,22 +114,33 @@
  "links": [],
  "modified": "2026-07-26 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "Fab MSP",
+ "module": "MSP",
  "name": "MSP Billing Charge",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
    "role": "System Manager",
-   "create": 1, "read": 1, "write": 1, "delete": 1, "report": 1, "export": 1
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
   },
   {
    "role": "Accounts Manager",
-   "create": 1, "read": 1, "write": 1, "delete": 1, "report": 1, "export": 1
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
   },
   {
    "role": "Agent Manager",
-   "read": 1, "report": 1
+   "read": 1,
+   "report": 1
   }
  ],
  "sort_field": "modified",
