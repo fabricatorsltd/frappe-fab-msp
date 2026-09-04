@@ -5,27 +5,17 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled",
-  "environment",
+  "connection",
   "column_break_main",
   "notify_email",
-  "section_break_account",
-  "account_email",
-  "api_key",
-  "column_break_account",
   "callback_secret",
-  "access_token",
-  "access_token_expiry",
   "section_break_signature",
   "signature_type",
   "otp_channel",
   "signer_language",
   "column_break_signature",
   "sender_name",
-  "days_validity",
-  "section_break_advanced",
-  "endpoint_url",
-  "oauth_token_url",
-  "timeout_seconds"
+  "days_validity"
  ],
  "fields": [
   {
@@ -35,11 +25,12 @@
    "description": "Off: the Send for signature action refuses to run."
   },
   {
-   "fieldname": "environment",
-   "fieldtype": "Select",
-   "label": "Environment",
-   "options": "Sandbox\nProduction",
-   "default": "Sandbox"
+   "fieldname": "connection",
+   "fieldtype": "Link",
+   "options": "OpenAPI Connection",
+   "label": "OpenAPI Connection",
+   "link_filters": "[[\"OpenAPI Connection\",\"service_type\",\"=\",\"eSignature\"]]",
+   "description": "The eSignature connection in fab_openapi: it carries the account, the endpoint and the OAuth token."
   },
   {
    "fieldname": "column_break_main",
@@ -53,42 +44,10 @@
    "description": "Where the signed parte and its audit trail are sent. Empty: no mail, the files stay on the task."
   },
   {
-   "fieldname": "section_break_account",
-   "fieldtype": "Section Break",
-   "label": "Account"
-  },
-  {
-   "fieldname": "account_email",
-   "fieldtype": "Data",
-   "label": "Account Email",
-   "description": "The OpenAPI account, used as the basic-auth user of the OAuth token call."
-  },
-  {
-   "fieldname": "api_key",
-   "fieldtype": "Password",
-   "label": "API Key"
-  },
-  {
-   "fieldname": "column_break_account",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "callback_secret",
    "fieldtype": "Password",
    "label": "Callback Secret",
    "description": "Sent with each request and checked on the callback. Without it no callback is accepted."
-  },
-  {
-   "fieldname": "access_token",
-   "fieldtype": "Password",
-   "label": "Cached Access Token",
-   "read_only": 1
-  },
-  {
-   "fieldname": "access_token_expiry",
-   "fieldtype": "Datetime",
-   "label": "Access Token Expiry",
-   "read_only": 1
   },
   {
    "fieldname": "section_break_signature",
@@ -133,35 +92,11 @@
    "label": "Days Validity",
    "default": "30",
    "description": "A request still unsigned after this many days is called Expired."
-  },
-  {
-   "fieldname": "section_break_advanced",
-   "fieldtype": "Section Break",
-   "label": "Advanced",
-   "collapsible": 1
-  },
-  {
-   "fieldname": "endpoint_url",
-   "fieldtype": "Data",
-   "label": "Endpoint URL",
-   "description": "Overrides the environment default (https://test.esignature.openapi.com)."
-  },
-  {
-   "fieldname": "oauth_token_url",
-   "fieldtype": "Data",
-   "label": "OAuth Token URL",
-   "description": "Overrides the environment default (https://test.oauth.openapi.it/token)."
-  },
-  {
-   "fieldname": "timeout_seconds",
-   "fieldtype": "Int",
-   "label": "Timeout (s)",
-   "default": "30"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-09-04 00:00:00.000000",
+ "modified": "2026-09-04 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "MSP",
  "name": "MSP Signature Settings",

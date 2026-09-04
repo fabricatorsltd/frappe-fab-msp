@@ -160,11 +160,15 @@ The parte can be signed on the spot instead of on paper. Both signatures of the
 form are collected in one request: **FIRMA INSTALADOR** by the technician and
 **FIRMA ENCARGADO Y SELLO DE TIENDA** by the shop manager, each with an OTP.
 
-Set it up once in **MSP > Signature Settings** (System Manager only):
+The account is the OpenAPI one we already use for e-invoicing, so the credentials
+are not repeated here: they stay on an **OpenAPI Connection** (app `fab_openapi`)
+with **Service Type** eSignature, which also holds the endpoint, the environment
+and the cached OAuth token. Create that connection once (Sandbox while testing,
+Production after) with the same Account Email and API Key as the SDI one.
 
-- **Enabled**, **Environment** (Sandbox while testing, Production after).
-- **Account Email** and **API Key** of the OpenAPI account: they are the
-  credentials of the OAuth token call, nothing else is needed.
+Then, once, in **MSP > Signature Settings** (System Manager only):
+
+- **Enabled** and the **OpenAPI Connection** to run on.
 - **Callback Secret**: any long random string. It travels with each request and
   is checked when the provider calls back; without it no callback is accepted.
 - **Notify Email**: where the signed parte and its audit trail are mailed. Empty
@@ -183,8 +187,7 @@ Day to day, on a **Completed** intervention:
    they sign on their own phone. **Signing links** brings the same dialog back.
 3. The technician signs their own link; the manager signs theirs with the OTP
    they receive. **Signature Status** follows: Sent, then Signed once both are
-   through. It shows **Partially signed** in between only if the provider reports
-   the state of each signer, which its documented status payload does not carry.
+   through, and **Partially signed** in between, once one of the two is done.
 4. When both have signed, the signed parte and the audit trail are attached to
    the task (private), **Signed On** is filled and the mail goes to the notify
    address. The provider calls back on its own; an hourly job also refreshes any

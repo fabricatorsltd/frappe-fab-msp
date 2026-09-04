@@ -8,8 +8,9 @@ signed, the signed parte and its audit trail come back onto the task.
 
 The request/response mapping follows the published OAS3 spec,
 https://console.openapi.com/oas/en/esignature.openapi.json
-(POST /EU-SES, GET /signatures/{id}/{actionType}); the OAuth token call follows
-https://oauth.openapi.it/token as the SdI integration already uses it.
+(POST /EU-SES, GET /signatures/{id}/{actionType}). The account, the endpoint and
+the OAuth token are not ours: they belong to an OpenAPI Connection in fab_openapi,
+which already mints and caches the token for every OpenAPI service.
 """
 
 from __future__ import annotations
@@ -18,12 +19,11 @@ import base64
 import hmac
 import io
 import json
-from datetime import datetime
 from typing import Any, Mapping
-from urllib.parse import urlparse
 
 import frappe
 import requests
+from fab_openapi.clients.base import OpenAPIClient, extract_api_data, extract_error_message
 from frappe import _
 from frappe.utils import (
     add_to_date,
@@ -35,27 +35,13 @@ from frappe.utils import (
     get_url_to_form,
     now_datetime,
 )
-from frappe.utils.password import get_decrypted_password, set_encrypted_password
 
 SETTINGS = "MSP Signature Settings"
+CONNECTION_DOCTYPE = "OpenAPI Connection"
+SERVICE_TYPE = "eSignature"
 
-# base urls per environment, from the spec's `servers` block
-ENDPOINTS = {
-    "Production": "https://esignature.openapi.com",
-    "Sandbox": "https://test.esignature.openapi.com",
-}
-OAUTH_TOKEN_URLS = {
-    "Production": "https://oauth.openapi.it/token",
-    "Sandbox": "https://test.oauth.openapi.it/token",
-}
 DEFAULT_SIGNATURE_TYPE = "EU-SES"
 SIGNATURES_PATH = "/signatures"
-DEFAULT_TIMEOUT = 30
-
-# reuse a minted token until it nears expiry; re-mint this early, and assume this
-# lifetime when the provider states none
-TOKEN_EXPIRY_SKEW_SECONDS = 300
-TOKEN_FALLBACK_LIFETIME_SECONDS = 7 * 24 * 3600
 
 TECHNICIAN, MANAGER = "technician", "manager"
 
@@ -261,11 +247,11 @@ def manager_contact(doc) -> dict:
 
 # --- state ------------------------------------------------------------------
 
-# The provider's own states are WAIT_VALIDATION, WAIT_SIGN, WAIT_SIGNER, DONE and
-# ERROR (GET /signatures/{id}/detail). Only the answer to POST /EU-SES documents a
-# `signers` array; the detail schema does not carry one, so a request the first
-# signer is through shows as Sent unless the provider does send the signer states,
-# in which case the split below picks Partially signed up.
+# The provider's own states are WAIT_VALIDATION, WAIT_SIGNERS, DONE and ERROR
+# (GET /signatures/{id}/detail; the spec calls the middle one WAIT_SIGN, the
+# sandbox answers WAIT_SIGNERS, so nothing here matches on it by name). The detail
+# payload also carries the `signers` array with a per-signer state, which is what
+# tells a half-signed parte from a fresh one.
 SIGNED_SIGNER_STATES = {"DONE", "SIGNED", "COMPLETED"}
 DECLINED_MARKERS = ("REFUS", "DECLIN", "REJECT")
 PENDING_STATES = ("Sent", "Partially signed")
@@ -320,133 +306,50 @@ def signing_links(payload: Mapping[str, Any]) -> dict:
 # --- client -----------------------------------------------------------------
 
 
-class ESignatureClient:
-    """Every HTTP call of the module. Built from the settings doc, so a test can
-    put its own object in its place."""
+class ESignatureClient(OpenAPIClient):
+    """Every HTTP call of the module.
 
-    def __init__(self, settings=None):
-        self.settings = settings if settings is not None else get_settings()
-        self._token = None
+    The connection, its endpoint and its OAuth token come from fab_openapi, which
+    holds the OpenAPI account; what belongs here is the signature endpoint, the
+    scopes it needs and the three calls the parte makes.
+    """
 
-    # -- configuration
+    service_type = SERVICE_TYPE
 
-    def _value(self, fieldname):
-        value = self.settings.get(fieldname)
-        return str(value).strip() if value else None
-
-    def _secret(self, fieldname):
-        return get_secret(self.settings, fieldname)
-
-    def environment(self) -> str:
-        return self._value("environment") or "Sandbox"
-
-    def base_url(self) -> str:
-        return (self._value("endpoint_url") or ENDPOINTS.get(self.environment(), ENDPOINTS["Sandbox"])).rstrip("/")
-
-    def token_url(self) -> str:
-        return self._value("oauth_token_url") or OAUTH_TOKEN_URLS.get(
-            self.environment(), OAUTH_TOKEN_URLS["Sandbox"]
-        )
-
-    def timeout(self) -> int:
-        return cint(self.settings.get("timeout_seconds")) or DEFAULT_TIMEOUT
+    def __init__(self, connection=None, signature_type: str | None = None):
+        super().__init__(connection if connection is not None else get_connection())
+        self.signature_type = (signature_type or DEFAULT_SIGNATURE_TYPE).strip()
 
     def signature_path(self) -> str:
         """The endpoint is the signature level itself, POST /EU-SES."""
-        return "/" + (self._value("signature_type") or DEFAULT_SIGNATURE_TYPE)
+        return f"/{self.signature_type}"
 
-    def scope_value(self) -> str:
-        """One token for every operation we call, as the provider wants its
-        scopes: METHOD:host/path."""
-        host = urlparse(self.base_url()).netloc
-        scopes = {f"POST:{host}{self.signature_path()}", f"GET:{host}{SIGNATURES_PATH}"}
-        return " ".join(sorted(scopes))
-
-    # -- token
-
-    def get_token(self, force_refresh: bool = False) -> str:
-        if not force_refresh:
-            if self._token:
-                return self._token
-            token, expiry = self._cached_token()
-            if token and expiry and get_datetime(expiry) > now_datetime():
-                self._token = token
-                return token
-        token, payload = self._fetch_token()
-        self._store_token(token, self._token_expiry(payload, token))
-        self._token = token
-        return token
-
-    def _fetch_token(self) -> tuple[str, dict]:
-        account, api_key = self._value("account_email"), self._secret("api_key")
-        if not account or not api_key:
-            frappe.throw(_("Set the account email and the API key on {0} first.").format(_(SETTINGS)))
-        try:
-            response = requests.post(
-                self.token_url(),
-                auth=(account, api_key),
-                json={"scopes": self.scope_value().split()},
-                headers={"Accept": "application/json"},
-                timeout=self.timeout(),
-            )
-        except requests.RequestException as exc:
-            frappe.throw(_("The eSignature token request failed: {0}").format(exc))
-        payload = _json(response)
-        if response.status_code >= 400:
-            frappe.throw(
-                _("The eSignature token request failed with status {0}: {1}").format(
-                    response.status_code, _error_message(payload, response.text)
-                )
-            )
-        token = payload.get("token") if isinstance(payload, dict) else None
-        if not token:
-            frappe.throw(_("The eSignature token response carried no token."))
-        return token, payload
-
-    def _cached_token(self):
-        token = get_decrypted_password(SETTINGS, SETTINGS, "access_token", raise_exception=False)
-        return token, frappe.db.get_single_value(SETTINGS, "access_token_expiry")
-
-    def _store_token(self, token: str, expiry) -> None:
-        set_encrypted_password(SETTINGS, SETTINGS, token, "access_token")
-        frappe.db.set_single_value(SETTINGS, "access_token_expiry", expiry)
-        # the polling job may never commit, and without this every run mints anew
-        frappe.db.commit()
-
-    def invalidate_token(self) -> None:
-        self._token = None
-        frappe.db.set_single_value(SETTINGS, "access_token_expiry", None)
-        frappe.db.commit()
-
-    def _token_expiry(self, payload: Mapping[str, Any], token: str):
-        expiry = _token_expiry(payload, token)
-        if expiry:
-            return add_to_date(expiry, seconds=-TOKEN_EXPIRY_SKEW_SECONDS)
-        return add_to_date(now_datetime(), seconds=TOKEN_FALLBACK_LIFETIME_SECONDS)
-
-    # -- calls
+    def token_scope_requests(self) -> tuple[tuple[str, str], ...]:
+        return (("POST", self.signature_path()), ("GET", SIGNATURES_PATH))
 
     def _call(self, method: str, path: str, accept="application/json", **kwargs):
-        url = f"{self.base_url()}{path}"
+        url = self.build_url(path)
         for attempt in range(2):
             headers = {
                 "Accept": accept,
-                "Authorization": f"Bearer {self.get_token(force_refresh=attempt > 0)}",
+                "Authorization": self.get_authorization_header(
+                    (path,), method=method, force_refresh=attempt > 0
+                ),
             }
             try:
                 response = requests.request(
-                    method, url, headers=headers, timeout=self.timeout(), **kwargs
+                    method, url, headers=headers, timeout=self.get_timeout_seconds(), **kwargs
                 )
             except requests.RequestException as exc:
                 frappe.throw(_("The eSignature request to {0} failed: {1}").format(url, exc))
-            if response.status_code in (401, 403) and attempt == 0:
-                self.invalidate_token()
+            if self._should_retry_auth(response.status_code, attempt):
+                self.invalidate_access_token()
                 continue
             break
         if response.status_code >= 400:
             frappe.throw(
                 _("The eSignature request to {0} failed with status {1}: {2}").format(
-                    url, response.status_code, _error_message(_json_or_none(response), response.text)
+                    url, response.status_code, extract_error_message(_json_or_none(response), response.text)
                 )
             )
         return response
@@ -481,15 +384,20 @@ class ESignatureClient:
         return self._call("GET", f"{SIGNATURES_PATH}/{request_id}/{action_type}", accept=accept).content
 
 
-def _json(response):
+def _json(response) -> dict:
+    """The signature object itself: every answer arrives inside the OpenAPI
+    envelope, and the documented schemas describe what the envelope carries."""
     try:
-        return response.json()
+        payload = extract_api_data(response.json())
     except ValueError:
         frappe.throw(
             _("The eSignature service answered status {0} with something that is not JSON.").format(
                 response.status_code
             )
         )
+    if not isinstance(payload, dict):
+        frappe.throw(_("The eSignature service answered {0} with no signature object.").format(response.status_code))
+    return payload
 
 
 def _json_or_none(response):
@@ -499,55 +407,25 @@ def _json_or_none(response):
         return None
 
 
-def _error_message(payload, fallback=None) -> str:
-    if isinstance(payload, Mapping):
-        for key in ("message", "detail", "error"):
-            value = payload.get(key)
-            if value:
-                return json.dumps(value, ensure_ascii=False)[:500] if isinstance(
-                    value, (dict, list)
-                ) else str(value)[:500]
-    return (fallback or "unknown error")[:500]
-
-
-def _token_expiry(payload: Mapping[str, Any], token: str):
-    """The provider's own expiry, else the token's JWT exp, else nothing."""
-    if isinstance(payload, Mapping):
-        for key in ("expire", "expiration", "expires_at", "expires", "exp"):
-            expiry = _epoch_or_datetime(payload.get(key))
-            if expiry:
-                return expiry
-    return _jwt_expiry(token)
-
-
-def _epoch_or_datetime(value):
-    if not value:
-        return None
-    if isinstance(value, (int, float)) or (isinstance(value, str) and value.isdigit()):
-        try:
-            return get_datetime(datetime.fromtimestamp(int(value)))
-        except (ValueError, OverflowError, OSError):
-            return None
-    return _as_datetime(value)
-
-
-def _jwt_expiry(token: str):
-    parts = token.split(".") if isinstance(token, str) else []
-    if len(parts) != 3:
-        return None
-    try:
-        segment = parts[1] + "=" * (-len(parts[1]) % 4)
-        claims = json.loads(base64.urlsafe_b64decode(segment.encode("ascii")))
-    except (ValueError, TypeError):
-        return None
-    return _epoch_or_datetime(claims.get("exp")) if isinstance(claims, dict) else None
-
-
 # --- settings ---------------------------------------------------------------
 
 
 def get_settings():
     return frappe.get_cached_doc(SETTINGS)
+
+
+def get_connection(settings=None):
+    """The OpenAPI Connection the signature runs on. The account and the token are
+    fab_openapi's business, so the settings only point at the row."""
+    settings = settings if settings is not None else get_settings()
+    connection = (settings.get("connection") or "").strip()
+    if not connection:
+        frappe.throw(
+            _("Set the OpenAPI connection on {0}: it carries the account and the endpoint.").format(
+                _(SETTINGS)
+            )
+        )
+    return frappe.get_cached_doc(CONNECTION_DOCTYPE, connection)
 
 
 def get_secret(settings, fieldname) -> str | None:
@@ -567,8 +445,11 @@ def is_enabled() -> bool:
     )
 
 
-def get_client():
-    return ESignatureClient()
+def get_client(settings=None):
+    settings = settings if settings is not None else get_settings()
+    return ESignatureClient(
+        get_connection(settings), signature_type=settings.get("signature_type")
+    )
 
 
 # --- the task's signature ---------------------------------------------------
@@ -605,7 +486,7 @@ def send_for_signature(task: str) -> dict:
     signers = build_signers(
         technician_contact(doc), manager_contact(doc), signature_positions(pdf), settings
     )
-    payload = get_client().create_ses_request(
+    payload = get_client(settings).create_ses_request(
         pdf,
         signers,
         callback_url=callback_url(),

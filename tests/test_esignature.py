@@ -37,18 +37,32 @@ def _throw(message, *args, **kwargs):
 
 def settings(**overrides):
     values = {
-        "environment": "Sandbox",
+        "connection": "eSignature Sandbox",
         "signature_type": "EU-SES",
         "otp_channel": "SMS",
         "signer_language": "es",
         "sender_name": "Fabricators",
         "days_validity": 30,
-        "timeout_seconds": 30,
-        "account_email": "billing@fabricators.dev",
-        "api_key": "secret-key",
     }
     values.update(overrides)
     return values
+
+
+def connection(**overrides):
+    """The OpenAPI Connection the client is built from. Bearer Token mode, so the
+    transport tests never reach the token endpoint: minting is fab_openapi's own."""
+    values = {
+        "connection_name": "eSignature Sandbox",
+        "environment": "Sandbox",
+        "endpoint_url": "",
+        "status_url": "",
+        "oauth_token_url": "",
+        "auth_mode": "Bearer Token",
+        "timeout_seconds": 30,
+        "get_password": lambda fieldname, raise_exception=True: "tok-1",
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
 
 
 TECHNICIAN = {
@@ -202,9 +216,16 @@ class TestSigningLinks(unittest.TestCase):
 
 
 class Response:
-    def __init__(self, status_code=200, payload=None, content=b"", text=""):
+    """What the provider really answers: the signature object inside the OpenAPI
+    envelope, or an error carrying its message at the top level."""
+
+    def __init__(self, status_code=200, payload=None, content=b"", text="", envelope=True):
         self.status_code = status_code
-        self._payload = payload
+        self._payload = (
+            {"data": payload, "success": True, "message": "", "error": None}
+            if envelope and payload is not None
+            else payload
+        )
         self.content = content
         self.text = text
 
@@ -216,45 +237,30 @@ class Response:
 
 class TestClient(unittest.TestCase):
     def client(self, **overrides):
-        return esignature.ESignatureClient(settings(**overrides))
+        return esignature.ESignatureClient(connection(**overrides))
 
-    def test_the_token_is_minted_with_basic_auth_and_the_call_scopes(self):
-        calls = []
-
-        def post(url, **kwargs):
-            calls.append((url, kwargs))
-            return Response(payload={"token": "tok-1", "expire": "2030-01-01 00:00:00"})
-
-        client = self.client()
-        with patch.object(esignature.requests, "post", post), \
-             patch.object(client, "_cached_token", lambda: (None, None)), \
-             patch.object(client, "_store_token", lambda *a: None):
-            self.assertEqual(client.get_token(), "tok-1")
-        url, kwargs = calls[0]
-        self.assertEqual(url, "https://test.oauth.openapi.it/token")
-        self.assertEqual(kwargs["auth"], ("billing@fabricators.dev", "secret-key"))
+    def test_the_endpoint_follows_the_connection_environment(self):
         self.assertEqual(
-            sorted(kwargs["json"]["scopes"]),
+            self.client().build_url("/EU-SES"), "https://test.esignature.openapi.com/EU-SES"
+        )
+        self.assertEqual(
+            self.client(environment="Production").build_url("/EU-SES"),
+            "https://esignature.openapi.com/EU-SES",
+        )
+
+    def test_one_token_covers_the_two_calls_the_parte_makes(self):
+        self.assertEqual(
+            sorted(self.client().full_scope_value().split()),
             [
                 "GET:test.esignature.openapi.com/signatures",
                 "POST:test.esignature.openapi.com/EU-SES",
             ],
         )
 
-    def test_a_cached_token_is_reused(self):
-        client = self.client()
-        with patch.object(esignature.requests, "post", lambda *a, **k: self.fail("must not mint")), \
-             patch.object(esignature, "now_datetime", lambda: NOW), \
-             patch.object(client, "_cached_token", lambda: ("tok-cached", "2030-01-01 00:00:00")):
-            self.assertEqual(client.get_token(), "tok-cached")
-
-    def test_a_token_response_without_a_token_is_refused(self):
-        client = self.client()
-        with patch.object(esignature, "frappe", frappe_stub()), \
-             patch.object(esignature.requests, "post", lambda *a, **k: Response(payload={})), \
-             patch.object(client, "_cached_token", lambda: (None, None)):
-            with self.assertRaises(Thrown):
-                client.get_token()
+    def test_the_signature_type_picks_the_endpoint_and_its_scope(self):
+        client = esignature.ESignatureClient(connection(), signature_type="EU-AES")
+        self.assertEqual(client.signature_path(), "/EU-AES")
+        self.assertIn("POST:test.esignature.openapi.com/EU-AES", client.full_scope_value())
 
     def test_the_ses_request_carries_the_pdf_the_signers_and_the_callback(self):
         calls = []
@@ -263,16 +269,15 @@ class TestClient(unittest.TestCase):
             calls.append((method, url, kwargs))
             return Response(payload={"id": "sig-1", "state": "WAIT_VALIDATION"})
 
-        client = self.client()
         signers = [{"name": "Marco", "surname": "Rossi"}]
-        with patch.object(esignature.requests, "request", request), \
-             patch.object(client, "get_token", lambda force_refresh=False: "tok-1"):
-            answer = client.create_ses_request(
+        with patch.object(esignature.requests, "request", request):
+            answer = self.client().create_ses_request(
                 b"%PDF-1.4", signers, callback_url="https://erp/callback", callback_data={"task": "T1"}
             )
         method, url, kwargs = calls[0]
         self.assertEqual((method, url), ("POST", "https://test.esignature.openapi.com/EU-SES"))
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer tok-1")
+        self.assertEqual(kwargs["timeout"], 30)
         body = kwargs["json"]
         self.assertEqual(body["signers"], signers)
         self.assertEqual(body["inputDocuments"][0]["sourceType"], "base64")
@@ -282,41 +287,49 @@ class TestClient(unittest.TestCase):
         self.assertEqual(answer["id"], "sig-1")
 
     def test_a_rejected_token_is_reminted_once(self):
-        answers = [Response(401, payload={}), Response(payload={"id": "sig-1"})]
-        tokens = []
+        answers = [Response(401, payload={}, envelope=False), Response(payload={"id": "sig-1"})]
+        refreshes = []
 
-        client = self.client()
+        client = esignature.ESignatureClient(connection(auth_mode="OAuth Client Credentials"))
         with patch.object(esignature.requests, "request", lambda *a, **k: answers.pop(0)), \
-             patch.object(client, "invalidate_token", lambda: None), \
-             patch.object(client, "get_token", lambda force_refresh=False: tokens.append(force_refresh) or "t"):
+             patch.object(client, "invalidate_access_token", lambda: None), \
+             patch.object(
+                 client,
+                 "get_client_credentials_token",
+                 lambda force_refresh=False: refreshes.append(force_refresh) or "t",
+             ):
             client.get_status("sig-1")
-        self.assertEqual(tokens, [False, True])
+        self.assertEqual(refreshes, [False, True])
 
     def test_a_failing_call_says_what_the_provider_answered(self):
-        client = self.client()
         with patch.object(esignature, "frappe", frappe_stub()), \
              patch.object(
                  esignature.requests,
                  "request",
-                 lambda *a, **k: Response(422, payload={"message": "array 'signers' is empty"}),
-             ), \
-             patch.object(client, "get_token", lambda force_refresh=False: "t"), \
-             patch.object(client, "invalidate_token", lambda: None):
+                 lambda *a, **k: Response(
+                     422, payload={"success": False, "message": "array 'signers' is empty"}, envelope=False
+                 ),
+             ):
             with self.assertRaises(Thrown) as caught:
-                client.create_ses_request(b"%PDF", [])
+                self.client().create_ses_request(b"%PDF", [])
         self.assertIn("array 'signers' is empty", str(caught.exception))
 
-    def test_the_environment_and_the_signature_type_pick_the_endpoint(self):
-        client = self.client(environment="Production")
-        self.assertEqual(client.base_url(), "https://esignature.openapi.com")
-        self.assertEqual(client.token_url(), "https://oauth.openapi.it/token")
-        self.assertEqual(client.signature_path(), "/EU-SES")
+    def test_the_openapi_envelope_is_unwrapped(self):
+        # the live api answers {"data": {...}, "success": true}: the signature
+        # object is what the rest of the module works on
+        detail = {"id": "sig-1", "state": "WAIT_SIGNERS", "signers": [{"state": "NEW"}]}
+        with patch.object(esignature.requests, "request", lambda *a, **k: Response(payload=detail)):
+            self.assertEqual(self.client().get_status("sig-1"), detail)
+
+    def test_an_answer_with_no_signature_object_is_refused(self):
+        with patch.object(esignature, "frappe", frappe_stub()), \
+             patch.object(esignature.requests, "request", lambda *a, **k: Response(payload=[1, 2])):
+            with self.assertRaises(Thrown):
+                self.client().get_status("sig-1")
 
     def test_a_download_returns_the_bytes(self):
-        client = self.client()
-        with patch.object(esignature.requests, "request", lambda *a, **k: Response(content=b"pdf-bytes")), \
-             patch.object(client, "get_token", lambda force_refresh=False: "t"):
-            self.assertEqual(client.download("sig-1", "signedDocument"), b"pdf-bytes")
+        with patch.object(esignature.requests, "request", lambda *a, **k: Response(content=b"pdf-bytes")):
+            self.assertEqual(self.client().download("sig-1", "signedDocument"), b"pdf-bytes")
 
 
 class FakeTask:
@@ -365,7 +378,7 @@ class TestSendForSignature(unittest.TestCase):
              patch.object(esignature, "manager_contact", lambda doc: MANAGER), \
              patch.object(esignature, "callback_url", lambda: "https://erp/callback"), \
              patch.object(esignature, "qr_data_uri", lambda url: "data:image/png;base64,x"), \
-             patch.object(esignature, "get_client", lambda: SimpleNamespace(create_ses_request=create_ses_request)):
+             patch.object(esignature, "get_client", lambda settings=None: SimpleNamespace(create_ses_request=create_ses_request)):
             return esignature.send_for_signature(doc.name), sent
 
     def task(self, **overrides):
@@ -426,7 +439,7 @@ class TestApplySignatureState(unittest.TestCase):
         with patch.object(esignature, "frappe", stub), \
              patch.object(esignature, "now_datetime", lambda: NOW), \
              patch.object(esignature, "get_settings", lambda: settings(notify_email=notify_email)), \
-             patch.object(esignature, "get_client", lambda: client), \
+             patch.object(esignature, "get_client", lambda settings=None: client), \
              patch.object(esignature, "attach_private", lambda doc, field, name, content: f"/private/{name}"), \
              patch("fab_msp.field_service.operator_name", lambda doc: "Marco Rossi"), \
              patch.object(esignature, "get_url_to_form", lambda dt, name: f"https://erp/app/task/{name}"), \
