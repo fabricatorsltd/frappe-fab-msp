@@ -1,0 +1,207 @@
+{%- set p = trison_parte(doc) -%}
+<style>
+	/* every class is prefixed: the print stylesheet already owns .label, .box and
+	   friends, and a bare name there turns a table cell into an inline box */
+	@page { size: A4; }
+	/* the PDF page margins are read from this rule, not from @page */
+	.print-format {
+		margin-top: 8mm; margin-bottom: 6mm; margin-left: 8mm; margin-right: 8mm;
+		padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 8.2pt;
+	}
+	.tp table { width: 100%; border-collapse: collapse; table-layout: fixed; page-break-inside: avoid; }
+	/* the print stylesheet pads every cell with 10px !important */
+	.tp td { border: 0.6pt solid #e0a9a9; padding: 2.5pt 4pt !important; vertical-align: top; word-wrap: break-word; line-height: 1.2; }
+	.tp .tp-block { border: 0.9pt solid #3a3a3a; margin-bottom: 5pt; page-break-inside: avoid; }
+	.tp .tp-block > table > tbody > tr > td:first-child { border-left: 0; }
+	.tp .tp-block > table > tbody > tr > td:last-child { border-right: 0; }
+	.tp .tp-block > table > tbody > tr:first-child > td { border-top: 0; }
+	.tp .tp-block > table > tbody > tr:last-child > td { border-bottom: 0; }
+	.tp .tp-lb { font-weight: bold; font-size: 7.4pt; letter-spacing: 0.2pt; }
+	.tp .tp-hd { font-weight: bold; text-align: center; font-size: 7.4pt; }
+	.tp .tp-c { text-align: center; }
+	.tp .tp-v { font-size: 8.4pt; }
+	.tp .tp-fill { height: 8mm; }
+	.tp .tp-big { height: 20mm; }
+	.tp .tp-sign { height: 18mm; }
+	.tp .tp-brand { border: 0.9pt solid #3a3a3a; padding: 4pt 8pt; margin-bottom: 4pt; overflow: hidden; }
+	.tp .tp-name { float: left; font-size: 18pt; font-weight: bold; letter-spacing: -0.5pt; }
+	.tp .tp-kind { float: right; font-size: 11pt; font-weight: bold; color: #c00; padding-top: 5pt; }
+	.tp .tp-box { display: inline-block; width: 7pt; height: 7pt; border: 0.6pt solid #3a3a3a; line-height: 7pt; font-size: 6.5pt; text-align: center; }
+	.tp .tp-pre { white-space: pre-wrap; }
+	.tp .tp-foot { text-align: center; font-size: 7.4pt; margin-top: 4pt; }
+</style>
+
+<div class="tp">
+	<div class="tp-brand">
+		<span class="tp-name">TRISON</span>
+		<span class="tp-kind">PARTE DE TICKET</span>
+	</div>
+
+	<div class="tp-block">
+		<table>
+			<tr>
+				<td class="tp-hd tp-lb" style="width: 22%">PARTE</td>
+				<td class="tp-hd tp-lb" style="width: 22%">FECHA</td>
+				<td class="tp-hd tp-lb">ID TICKET</td>
+			</tr>
+			<tr>
+				<td class="tp-c tp-v">{{ doc.fab_fs_parte or "" }}</td>
+				<td class="tp-c tp-v">{{ p.date }}</td>
+				<td class="tp-c tp-v">{{ doc.fab_fs_ticket_id or "" }}</td>
+			</tr>
+		</table>
+	</div>
+
+	<div class="tp-block">
+		<table>
+			<tr>
+				<td class="tp-lb" style="width: 50%">DELEGACIÓN</td>
+				<td class="tp-lb">INSTALADOR</td>
+			</tr>
+			<tr>
+				<td class="tp-big tp-v">
+					{{ doc.fab_fs_end_customer or "" }}
+					{%- if doc.fab_fs_end_customer_address %}<div class="tp-pre" style="margin-top: 6pt">{{ doc.fab_fs_end_customer_address }}</div>{% endif -%}
+				</td>
+				<td class="tp-big tp-v">P15105 - FABRICATORS S.R.L.</td>
+			</tr>
+		</table>
+	</div>
+
+	<div class="tp-block">
+		<table>
+			<tr>
+				<td class="tp-lb" style="width: 50%">DESCRIPCIÓN TICKET</td>
+				<td class="tp-lb">TRABAJOS REALIZADOS</td>
+			</tr>
+			<tr>
+				<td class="tp-big tp-v tp-pre">{{ doc.fab_fs_ticket_description or "" }}</td>
+				<td class="tp-big tp-v tp-pre">{{ doc.fab_fs_work_performed or "" }}</td>
+			</tr>
+		</table>
+	</div>
+
+	<div class="tp-block">
+		<table>
+			<colgroup>
+				<col style="width: 15%"><col style="width: 7%"><col style="width: 15%"><col style="width: 7%">
+				<col style="width: 8%"><col style="width: 8%"><col style="width: 10%">
+				<col style="width: 12%"><col style="width: 9%"><col style="width: 9%">
+			</colgroup>
+			<tr>
+				<td class="tp-lb" colspan="2">MATERIAL UTILIZADO</td>
+				<td class="tp-lb" colspan="8">MATERIAL RETIRADO</td>
+			</tr>
+			<tr>
+				<td class="tp-hd">Artículo</td>
+				<td class="tp-hd">Uds.</td>
+				<td class="tp-hd">Artículo</td>
+				<td class="tp-hd">Uds.</td>
+				<td class="tp-hd" colspan="3">Estado</td>
+				<td class="tp-hd" colspan="3">Destino</td>
+			</tr>
+			<tr>
+				<td colspan="4" style="border: 0"></td>
+				<td class="tp-hd">Correcto</td>
+				<td class="tp-hd">Reparar</td>
+				<td class="tp-hd">Defectuoso</td>
+				<td class="tp-hd">Almacén local</td>
+				<td class="tp-hd">TRISON</td>
+				<td class="tp-hd">Residuo</td>
+			</tr>
+			{%- for row in p.material %}
+			<tr>
+				<td class="tp-v">{{ row.used.article if row.used else "" }}</td>
+				<td class="tp-c tp-v">{{ (row.used.units | int) if row.used and row.used.units else "" }}</td>
+				<td class="tp-v">{{ row.removed.article if row.removed else "" }}</td>
+				<td class="tp-c tp-v">{{ (row.removed.units | int) if row.removed and row.removed.units else "" }}</td>
+				{%- for state in ["Correcto", "Reparar", "Defectuoso"] %}
+				<td class="tp-c"><span class="tp-box">{{ "X" if row.removed and row.removed.state == state else "" }}</span></td>
+				{%- endfor %}
+				{%- for destination in ["Almacén local", "TRISON", "Residuo"] %}
+				<td class="tp-c"><span class="tp-box">{{ "X" if row.removed and row.removed.destination == destination else "" }}</span></td>
+				{%- endfor %}
+			</tr>
+			{%- endfor %}
+		</table>
+	</div>
+
+	<div class="tp-block">
+		<table>
+			<colgroup>
+				<col style="width: 11%"><col style="width: 16%"><col style="width: 14%"><col style="width: 12%">
+				<col style="width: 10%"><col style="width: 10%"><col style="width: 27%">
+			</colgroup>
+			<tr><td class="tp-lb" colspan="7">MANO DE OBRA</td></tr>
+			<tr>
+				<td class="tp-hd">Fecha</td>
+				<td class="tp-hd">Nombre operario</td>
+				<td class="tp-hd">Categoría Prof.</td>
+				<td class="tp-hd">Tiempo Despl.</td>
+				<td class="tp-hd">H. Llegada</td>
+				<td class="tp-hd">H. Salida</td>
+				<td class="tp-hd">Tarea realizada</td>
+			</tr>
+			{%- for row in p.labour %}
+			<tr>
+				<td class="tp-c tp-v tp-fill">{{ row.date if row else "" }}</td>
+				<td class="tp-v">{{ row.operator if row else "" }}</td>
+				<td class="tp-v">{{ row.category if row else "" }}</td>
+				<td class="tp-c tp-v">{{ row.travel if row else "" }}</td>
+				<td class="tp-c tp-v">{{ row.arrival if row else "" }}</td>
+				<td class="tp-c tp-v">{{ row.departure if row else "" }}</td>
+				<td class="tp-v tp-pre">{{ row.task if row else "" }}</td>
+			</tr>
+			{%- endfor %}
+		</table>
+	</div>
+
+	<div class="tp-block">
+		<table>
+			<colgroup>
+				<col style="width: 28%"><col style="width: 14%"><col style="width: 14%"><col style="width: 9%">
+				<col style="width: 12%"><col style="width: 11%"><col style="width: 12%">
+			</colgroup>
+			<tr><td class="tp-lb" colspan="7">DESPLAZAMIENTO</td></tr>
+			<tr>
+				<td class="tp-hd">Nombre operario</td>
+				<td class="tp-hd">Origen</td>
+				<td class="tp-hd">Destino</td>
+				<td class="tp-hd">Km</td>
+				<td class="tp-hd">Parking</td>
+				<td class="tp-hd">Peaje</td>
+				<td class="tp-hd">Total</td>
+			</tr>
+			{%- for row in p.travel %}
+			<tr>
+				<td class="tp-v tp-fill">{{ (row.operator or p.operator) if row else "" }}</td>
+				<td class="tp-v">{{ row.origin if row else "" }}</td>
+				<td class="tp-v">{{ row.destination if row else "" }}</td>
+				<td class="tp-c tp-v">{{ (row.km | round(0) | int) if row and row.km else "" }}</td>
+				<td class="tp-c tp-v">{{ row.get_formatted("parking") if row and row.parking else "" }}</td>
+				<td class="tp-c tp-v">{{ row.get_formatted("toll") if row and row.toll else "" }}</td>
+				<td class="tp-c tp-v">{{ row.get_formatted("total") if row and row.total else "" }}</td>
+			</tr>
+			{%- endfor %}
+		</table>
+	</div>
+
+	<div class="tp-block">
+		<table>
+			<tr>
+				<td class="tp-lb" style="width: 50%">FIRMA INSTALADOR</td>
+				<td class="tp-lb">FIRMA ENCARGADO Y SELLO DE TIENDA</td>
+			</tr>
+			<tr>
+				<td class="tp-sign"></td>
+				<td class="tp-sign"></td>
+			</tr>
+			<tr>
+				<td class="tp-lb">FECHA {{ p.date }}</td>
+				<td class="tp-lb">FECHA</td>
+			</tr>
+		</table>
+	</div>
+
+	<div class="tp-foot">Phone: +34 881 986 109 Telegram: @TrisonWorld (+34 662 336 313)</div>
+</div>

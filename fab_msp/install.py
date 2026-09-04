@@ -3,6 +3,8 @@ from __future__ import annotations
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from fab_msp import field_service
+
 # MSP fields surfaced to agents inside the Helpdesk SPA ticket view. The SPA
 # renders whatever the Default ticket template lists, so registering them there
 # is how we extend the agent view without touching the Vue frontend.
@@ -117,6 +119,7 @@ def after_install():
     ensure_ticket_template_fields()
     ensure_form_script()
     ensure_email_template()
+    field_service.ensure_field_service_setup()
 
 
 def after_migrate():
@@ -124,6 +127,7 @@ def after_migrate():
     ensure_ticket_template_fields()
     ensure_form_script()
     ensure_email_template()
+    field_service.ensure_field_service_setup()
 
 
 def ensure_email_template():
@@ -221,7 +225,7 @@ def _upsert_form_script(name: str, script: str, portal: int):
 
 
 def ensure_custom_fields():
-    create_custom_fields(get_custom_fields(), ignore_validate=True)
+    create_custom_fields(get_custom_fields(), ignore_validate=True, update=True)
 
 
 def ensure_ticket_template_fields():
@@ -245,7 +249,10 @@ def ensure_ticket_template_fields():
 
 
 def get_custom_fields() -> dict:
+    """Every custom field the app owns, in one place. The field service block
+    lives in its own module but is created from here like the others."""
     return {
+        **field_service.get_custom_fields(),
         # Service catalog: rules attached to a request category
         "HD Ticket Type": [
             {

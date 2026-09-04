@@ -81,23 +81,43 @@ def _is_consolidated(customer) -> bool:
     return bool(erp) and frappe.db.get_value("Customer", erp, "fab_msp_billing_mode") == "Consolidated"
 
 
-def _defer_charge(t, cs, item, qty, unit, description) -> str:
+def defer_charge(
+    customer, item, qty, rate, description, posting_date=None, hd_ticket=None, task=None, customer_service=None
+) -> str:
+    """Park one billable line for the customer's next consolidated invoice.
+
+    The single place a charge is created, whatever produced it: a ticket's
+    fulfillment or a closed field service intervention.
+    """
     charge = frappe.get_doc(
         {
             "doctype": "MSP Billing Charge",
-            "customer": _erp_customer(t.customer),
-            "posting_date": today(),
+            "customer": customer,
+            "posting_date": posting_date or today(),
             "item": item,
             "qty": qty,
-            "rate": unit,
+            "rate": rate,
             "description": description,
-            "hd_ticket": t.name,
-            "customer_service": cs.name if cs else None,
+            "hd_ticket": hd_ticket,
+            "task": task,
+            "customer_service": customer_service,
             "status": "Unbilled",
         }
     )
     charge.insert(ignore_permissions=True)
     return charge.name
+
+
+def _defer_charge(t, cs, item, qty, unit, description) -> str:
+    return defer_charge(
+        _erp_customer(t.customer),
+        item,
+        qty,
+        unit,
+        description,
+        hd_ticket=t.name,
+        customer_service=cs.name if cs else None,
+    )
 
 
 def _rules(t) -> dict:

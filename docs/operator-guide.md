@@ -125,6 +125,55 @@ twice. Review and submit the draft manually.
 Run it from the desk: **MSP > Consolidated Billing**, set the posting date and
 click *Generate Consolidated Invoices*; the created drafts are listed.
 
+## Field service (TRISON parte de ticket)
+
+An on-site intervention is an ERPNext **Task** under the project **TRISON field
+service**, opened from **MSP > Field Service**. It carries the Trison form: parte
+number, ticket id, end customer and address, ticket description, work performed,
+who went (an internal Employee or an external Supplier), arrival and departure
+time, travel time, material used/removed, travel rows, and the pre-filled parte
+received from Trison as an attachment. Attachments on a task are forced private.
+
+1. Open a task, fill the parte fields and attach the Trison PDF.
+2. **Hours Billed** defaults to the time on site rounded **up to the next half
+   hour** (10:00 to 11:10 bills 1.5 h; a departure earlier than the arrival is a
+   job past midnight). Travel is paid by the call-out fee, so it is not in the
+   hours. The field is editable and a manual value survives later edits of the
+   times.
+3. Set the status to **Completed**. That bills the intervention: two
+   `MSP Billing Charge` rows for the project's customer, a call-out (fee, default
+   40) and the hours (hourly rate, default 40), described with parte, date and
+   end customer, in the customer's language. Completing twice never bills twice,
+   and a project with no customer refuses the close.
+4. Correcting the hours or a fee afterwards updates the charges as long as they
+   are still Unbilled; once they are on a submitted invoice they are frozen.
+5. Print **Parte de Ticket TRISON** to send Trison the completed form (one A4
+   page, rendered by Chrome).
+
+The charges join the customer's next consolidated invoice. The task shows Billed
+when that invoice is **submitted**; cancelling it, or deleting the draft, puts the
+charges back to Unbilled and the task back to "To bill".
+
+### External technicians
+
+`fab_msp.api.setup_field_technician(user, supplier)` (System Manager only) gives a
+technician the **Field Technician** role and a User Permission on their Supplier.
+They see only their own interventions, in the list and by direct URL, and the
+money on the task (call-out fee, hourly rate, billing status, the charges and the
+invoices) sits at permission level 1, which only Accounts Manager, Projects
+Manager and Projects User hold. Known gap: the global File list still shows the
+names of attachments belonging to other suppliers' partes.
+
+### Pay when paid
+
+**MSP > Field Service Settlement** lists the completed interventions with what
+was billed to Trison (the sum of the charges, so a later correction of the task
+cannot disagree with the invoice), the sales invoice and its status, the
+technician's own invoice (field **Technician Invoice** on the task, filled when it
+arrives) and its outstanding amount. **Payable now** means Trison's invoice is
+Paid and the technician's is not settled; a consolidated invoice only partly paid
+counts as unpaid.
+
 ## Invoice lifecycle and SdI
 
 MSP invoices (immediate or consolidated) are created as **draft** and already

@@ -38,6 +38,40 @@ def create_service_from_ticket(ticket: str) -> str:
     return cs.name
 
 
+@frappe.whitelist(methods=["POST"])
+def setup_field_technician(user: str, supplier: str) -> str:
+    """Give an external technician desk access to their own interventions.
+
+    The Field Technician role opens the Task form; the User Permission on the
+    supplier is what keeps them to their own jobs. Idempotent. It hands out a
+    role and lifts a portal user to System User, so only a System Manager runs it.
+    """
+    frappe.only_for("System Manager")
+    from fab_msp.field_service import FIELD_TECHNICIAN_ROLE
+
+    doc = frappe.get_doc("User", user)
+    if doc.user_type != "System User":
+        doc.user_type = "System User"
+    if FIELD_TECHNICIAN_ROLE not in {r.role for r in doc.get("roles", [])}:
+        doc.append("roles", {"role": FIELD_TECHNICIAN_ROLE})
+    doc.save(ignore_permissions=True)
+
+    if not frappe.db.exists(
+        "User Permission", {"user": user, "allow": "Supplier", "for_value": supplier}
+    ):
+        permission = frappe.get_doc(
+            {
+                "doctype": "User Permission",
+                "user": user,
+                "allow": "Supplier",
+                "for_value": supplier,
+                "apply_to_all_doctypes": 1,
+            }
+        )
+        permission.insert(ignore_permissions=True)
+    return user
+
+
 def _ticket_type_rules(ticket_doc) -> tuple[str, str]:
     approval_by, cmdb_effect = "Internal Manager", "None"
     if ticket_doc.ticket_type:

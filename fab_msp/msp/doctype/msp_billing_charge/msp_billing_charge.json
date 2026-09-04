@@ -12,6 +12,7 @@
   "status",
   "column_break_head",
   "hd_ticket",
+  "task",
   "customer_service",
   "sales_invoice",
   "section_line",
@@ -64,6 +65,12 @@
    "fieldtype": "Link",
    "label": "Ticket",
    "options": "HD Ticket"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
   },
   {
    "fieldname": "customer_service",

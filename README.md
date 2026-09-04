@@ -26,6 +26,12 @@ the service desk and its ERP connection.
 - **Billing fulfillment**: on approval of a billable request the app provisions
   the service and generates ERP artefacts, deriving price from the customer's
   price list and tax from the customer's tax category.
+- **Field service**: an on-site intervention is an ERPNext Task carrying the
+  TRISON "parte de ticket", printed back on the same form. Closing it bills a
+  call-out plus the hours (rounded up to the half hour) into the customer's
+  consolidated invoice; the *Field Service Settlement* report says which
+  technician invoice may be paid because the customer has paid. External
+  technicians get desk access to their own jobs only, without the money on them.
 
 ### Visibility
 

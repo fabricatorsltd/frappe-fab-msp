@@ -77,10 +77,9 @@ app_license = "agpl-3.0"
 # ----------
 
 # add methods and filters to jinja environment
-# jinja = {
-# 	"methods": "fab_msp.utils.jinja_methods",
-# 	"filters": "fab_msp.utils.jinja_filters"
-# }
+jinja = {
+	"methods": ["fab_msp.field_service.trison_parte"],
+}
 
 # Installation
 # ------------
@@ -144,9 +143,26 @@ doc_events = {
 		"validate": "fab_msp.ticket.apply_service_rules",
 		"on_update": "fab_msp.ticket.maybe_fulfill_on_close",
 	},
+	"Task": {
+		"validate": "fab_msp.field_service.apply_field_service_defaults",
+		"on_update": "fab_msp.field_service.maybe_bill_on_close",
+	},
 	"Sales Invoice": {
 		"on_submit": "fab_msp.billing.reflect_invoice_on_submit",
+		"on_cancel": "fab_msp.billing.release_invoice_charges",
+		"on_trash": "fab_msp.billing.release_invoice_charges",
 	},
+	"File": {
+		"after_insert": "fab_msp.field_service.force_private_attachment",
+	},
+}
+
+permission_query_conditions = {
+	"Task": "fab_msp.field_service.task_query_conditions",
+}
+
+has_permission = {
+	"Task": "fab_msp.field_service.task_has_permission",
 }
 
 # Scheduled Tasks

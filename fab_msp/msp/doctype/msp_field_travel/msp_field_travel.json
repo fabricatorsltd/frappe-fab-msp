@@ -1,0 +1,80 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-09-04 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "operator",
+  "origin",
+  "destination",
+  "km",
+  "parking",
+  "toll",
+  "total"
+ ],
+ "fields": [
+  {
+   "fieldname": "operator",
+   "fieldtype": "Data",
+   "label": "Operator",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "origin",
+   "fieldtype": "Data",
+   "label": "Origin",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "destination",
+   "fieldtype": "Data",
+   "label": "Destination",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "km",
+   "fieldtype": "Float",
+   "label": "Km",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "parking",
+   "fieldtype": "Currency",
+   "label": "Parking",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "toll",
+   "fieldtype": "Currency",
+   "label": "Toll",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "total",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Left blank it is filled with parking + toll."
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "MSP",
+ "name": "MSP Field Travel",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

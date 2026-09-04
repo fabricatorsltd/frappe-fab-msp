@@ -14,8 +14,10 @@ from fab_msp.fulfillment import (
 
 def reflect_invoice_on_submit(doc, method=None):
     """When an MSP-generated Sales Invoice is submitted, mark the originating
-    tickets Invoiced. Sending to SdI stays the standard fab_italy_edi action on
-    the submitted invoice."""
+    tickets Invoiced and the field service interventions Billed. Sending to SdI
+    stays the standard fab_italy_edi action on the submitted invoice."""
+    from fab_msp.field_service import reflect_billed_tasks
+
     tickets = set(
         frappe.get_all("HD Ticket", filters={"fab_sales_invoice": doc.name}, pluck="name")
     )
@@ -28,6 +30,26 @@ def reflect_invoice_on_submit(doc, method=None):
     )
     for ticket in tickets:
         frappe.db.set_value("HD Ticket", ticket, "fab_billing_status", "Invoiced")
+    reflect_billed_tasks(doc.name)
+
+
+def release_invoice_charges(doc, method=None):
+    """A cancelled invoice, or a deleted draft, frees what it carried.
+
+    The charges go back to Unbilled so the next run picks them up, and the
+    interventions behind them back to "To bill". Tickets keep their status: the
+    invoice they point at still exists as a cancelled document.
+    """
+    from fab_msp.field_service import release_billed_tasks
+
+    charges = frappe.get_all(
+        "MSP Billing Charge", filters={"sales_invoice": doc.name}, fields=["name", "task"]
+    )
+    for charge in charges:
+        frappe.db.set_value(
+            "MSP Billing Charge", charge.name, {"status": "Unbilled", "sales_invoice": None}
+        )
+    release_billed_tasks({c.task for c in charges if c.task})
 
 
 @frappe.whitelist()
@@ -122,6 +144,29 @@ def build_consolidated_items(posting_date, pools, charges, rate_fn) -> list[dict
     return items
 
 
+def _warn_on_fallback_tax(customer, template) -> None:
+    """No tax category means the company default template, which is standard VAT.
+
+    Harmless for an Italian customer, wrong for a foreign one, so a foreign
+    customer landing there leaves a trace instead of a quietly taxed invoice.
+    """
+    if frappe.db.get_value("Customer", customer, "tax_category"):
+        return
+    address = frappe.db.get_value(
+        "Dynamic Link",
+        {"link_doctype": "Customer", "link_name": customer, "parenttype": "Address"},
+        "parent",
+    )
+    country = address and frappe.db.get_value("Address", address, "country")
+    if not country or country == "Italy":
+        return
+    frappe.log_error(
+        title="MSP: foreign customer billed with the default tax template",
+        message=f"Customer {customer} ({country}) has no Tax Category, so {template} was used. "
+        "Set the customer's tax category to a 0% template.",
+    )
+
+
 @frappe.whitelist()
 def generate_for_customer(customer: str, posting_date: str | None = None) -> str | None:
     """One draft invoice for a customer: recurring base of active pools plus the
@@ -174,11 +219,15 @@ def generate_for_customer(customer: str, posting_date: str | None = None) -> str
             "posting_date": posting_date,
             "set_posting_time": 1,  # keep the requested date, ERPNext defaults to today
             "ignore_pricing_rule": 1,
+            # the site default language would otherwise win over the customer's,
+            # and a foreign customer gets their invoice in their own language
+            "language": frappe.db.get_value("Customer", erp, "language"),
             "items": items,
             "remarks": remark,
         }
     )
     template = _customer_tax_template(erp)
+    _warn_on_fallback_tax(erp, template)
     if template:
         from erpnext.controllers.accounts_controller import get_taxes_and_charges
 
@@ -193,6 +242,9 @@ def generate_for_customer(customer: str, posting_date: str | None = None) -> str
         frappe.db.set_value(
             "MSP Billing Charge", c["name"], {"status": "Billed", "sales_invoice": si.name}
         )
+    from fab_msp.field_service import link_tasks_to_invoice
+
+    link_tasks_to_invoice(si.name)
     # an annual pool is due again a year after the period just billed
     for pool in annual_pools_billed(posting_date, pools, charges):
         renewal = frappe.db.get_value("Customer Service", pool, "renewal_date")
