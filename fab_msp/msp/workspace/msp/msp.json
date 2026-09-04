@@ -1,7 +1,7 @@
 {
  "app": "fab_msp",
  "charts": [],
- "content": "[{\"id\":\"msp_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Managed Services</span>\",\"col\":12}},{\"id\":\"msp_sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer Services\",\"col\":3}},{\"id\":\"msp_sc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Types\",\"col\":3}},{\"id\":\"msp_sc3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Consolidated Billing\",\"col\":3}},{\"id\":\"msp_sc4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Field Service\",\"col\":3}},{\"id\":\"msp_sc5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Field Service Settlement\",\"col\":3}}]",
+ "content": "[{\"id\":\"msp_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Managed Services</span>\",\"col\":12}},{\"id\":\"msp_sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer Services\",\"col\":3}},{\"id\":\"msp_sc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Types\",\"col\":3}},{\"id\":\"msp_sc3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Consolidated Billing\",\"col\":3}},{\"id\":\"msp_sc4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Field Service\",\"col\":3}},{\"id\":\"msp_sc5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Field Service Settlement\",\"col\":3}},{\"id\":\"msp_sc6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Signature Settings\",\"col\":3}}]",
  "creation": "2026-07-25 00:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -73,9 +73,20 @@
    "onboard": 0,
    "report_ref_doctype": "Task",
    "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Signature Settings",
+   "link_count": 0,
+   "link_to": "MSP Signature Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-09-04 12:00:00.000000",
+ "modified": "2026-09-04 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "MSP",
  "name": "MSP",
@@ -127,6 +138,14 @@
    "report_ref_doctype": "Task",
    "stats_filter": "[]",
    "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Signature Settings",
+   "link_to": "MSP Signature Settings",
+   "stats_filter": "[]",
+   "type": "DocType"
   }
  ],
  "title": "MSP",

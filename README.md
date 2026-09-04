@@ -32,6 +32,9 @@ the service desk and its ERP connection.
   consolidated invoice; the *Field Service Settlement* report says which
   technician invoice may be paid because the customer has paid. External
   technicians get desk access to their own jobs only, without the money on them.
+- **Signature**: the parte is signed on the spot by the technician and the shop
+  manager, each with an OTP, through OpenAPI's European eSignature (SES); the
+  signed parte and its audit trail come back onto the task as private files.
 
 ### Visibility
 

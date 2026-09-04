@@ -15,6 +15,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt, get_time, getdate, today
 
+from fab_msp import esignature
+
 CALLOUT_ITEM = "Field service call-out"
 HOUR_ITEM = "Field service hour"
 DEFAULT_CALLOUT_FEE = 40
@@ -811,11 +813,12 @@ def get_custom_fields() -> dict:
                 "options": "MSP Field Travel",
                 "insert_after": "fab_fs_materials_removed",
             },
+            *esignature.task_custom_fields(),
             {
                 "fieldname": "fab_fs_billing_section",
                 "label": "Field Service Billing",
                 "fieldtype": "Section Break",
-                "insert_after": "fab_fs_travel",
+                "insert_after": "fab_fs_signature_audit",
                 "depends_on": "fab_fs_parte",
                 "permlevel": 1,
             },

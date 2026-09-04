@@ -154,6 +154,45 @@ The charges join the customer's next consolidated invoice. The task shows Billed
 when that invoice is **submitted**; cancelling it, or deleting the draft, puts the
 charges back to Unbilled and the task back to "To bill".
 
+### Signature (electronic parte)
+
+The parte can be signed on the spot instead of on paper. Both signatures of the
+form are collected in one request: **FIRMA INSTALADOR** by the technician and
+**FIRMA ENCARGADO Y SELLO DE TIENDA** by the shop manager, each with an OTP.
+
+Set it up once in **MSP > Signature Settings** (System Manager only):
+
+- **Enabled**, **Environment** (Sandbox while testing, Production after).
+- **Account Email** and **API Key** of the OpenAPI account: they are the
+  credentials of the OAuth token call, nothing else is needed.
+- **Callback Secret**: any long random string. It travels with each request and
+  is checked when the provider calls back; without it no callback is accepted.
+- **Notify Email**: where the signed parte and its audit trail are mailed. Empty
+  means no mail, the files still land on the task.
+- **OTP Channel** (SMS or Email), **Signer Language**, **Sender Name** (opens the
+  OTP message), **Days Validity** (a request unsigned after that many days is
+  called Expired).
+
+Day to day, on a **Completed** intervention:
+
+1. Fill **Shop Manager**, **Shop Manager Phone** (international format,
+   +34600111222) and **Shop Manager Email**. First name and surname are both
+   needed: they are what gets printed on the signature.
+2. Press **Send for signature**. The app renders the parte, opens the request and
+   shows both signing links, the manager's one also as a QR code to hold out so
+   they sign on their own phone. **Signing links** brings the same dialog back.
+3. The technician signs their own link; the manager signs theirs with the OTP
+   they receive. **Signature Status** follows: Sent, then Signed once both are
+   through. It shows **Partially signed** in between only if the provider reports
+   the state of each signer, which its documented status payload does not carry.
+4. When both have signed, the signed parte and the audit trail are attached to
+   the task (private), **Signed On** is filled and the mail goes to the notify
+   address. The provider calls back on its own; an hourly job also refreshes any
+   request left pending, and **Refresh signature status** does it by hand.
+
+The technician's own contact comes from their Supplier's contact, their Employee
+record or their user, so only the manager has to be typed in.
+
 ### External technicians
 
 `fab_msp.api.setup_field_technician(user, supplier)` (System Manager only) gives a

@@ -1,0 +1,185 @@
+{
+ "actions": [],
+ "creation": "2026-09-04 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "environment",
+  "column_break_main",
+  "notify_email",
+  "section_break_account",
+  "account_email",
+  "api_key",
+  "column_break_account",
+  "callback_secret",
+  "access_token",
+  "access_token_expiry",
+  "section_break_signature",
+  "signature_type",
+  "otp_channel",
+  "signer_language",
+  "column_break_signature",
+  "sender_name",
+  "days_validity",
+  "section_break_advanced",
+  "endpoint_url",
+  "oauth_token_url",
+  "timeout_seconds"
+ ],
+ "fields": [
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "description": "Off: the Send for signature action refuses to run."
+  },
+  {
+   "fieldname": "environment",
+   "fieldtype": "Select",
+   "label": "Environment",
+   "options": "Sandbox\nProduction",
+   "default": "Sandbox"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notify_email",
+   "fieldtype": "Data",
+   "options": "Email",
+   "label": "Notify Email",
+   "description": "Where the signed parte and its audit trail are sent. Empty: no mail, the files stay on the task."
+  },
+  {
+   "fieldname": "section_break_account",
+   "fieldtype": "Section Break",
+   "label": "Account"
+  },
+  {
+   "fieldname": "account_email",
+   "fieldtype": "Data",
+   "label": "Account Email",
+   "description": "The OpenAPI account, used as the basic-auth user of the OAuth token call."
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key"
+  },
+  {
+   "fieldname": "column_break_account",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "callback_secret",
+   "fieldtype": "Password",
+   "label": "Callback Secret",
+   "description": "Sent with each request and checked on the callback. Without it no callback is accepted."
+  },
+  {
+   "fieldname": "access_token",
+   "fieldtype": "Password",
+   "label": "Cached Access Token",
+   "read_only": 1
+  },
+  {
+   "fieldname": "access_token_expiry",
+   "fieldtype": "Datetime",
+   "label": "Access Token Expiry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_signature",
+   "fieldtype": "Section Break",
+   "label": "Signature"
+  },
+  {
+   "fieldname": "signature_type",
+   "fieldtype": "Select",
+   "label": "Signature Type",
+   "options": "EU-SES",
+   "default": "EU-SES",
+   "description": "Simple electronic signature with OTP: the only level the parte flow places boxes for."
+  },
+  {
+   "fieldname": "otp_channel",
+   "fieldtype": "Select",
+   "label": "OTP Channel",
+   "options": "SMS\nEmail",
+   "default": "SMS"
+  },
+  {
+   "fieldname": "signer_language",
+   "fieldtype": "Select",
+   "label": "Signer Language",
+   "options": "es\nen\nit\nfr\nde\npt\nbrowser",
+   "default": "es"
+  },
+  {
+   "fieldname": "column_break_signature",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sender_name",
+   "fieldtype": "Data",
+   "label": "Sender Name",
+   "description": "Opens the OTP message the signer receives."
+  },
+  {
+   "fieldname": "days_validity",
+   "fieldtype": "Int",
+   "label": "Days Validity",
+   "default": "30",
+   "description": "A request still unsigned after this many days is called Expired."
+  },
+  {
+   "fieldname": "section_break_advanced",
+   "fieldtype": "Section Break",
+   "label": "Advanced",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "endpoint_url",
+   "fieldtype": "Data",
+   "label": "Endpoint URL",
+   "description": "Overrides the environment default (https://test.esignature.openapi.com)."
+  },
+  {
+   "fieldname": "oauth_token_url",
+   "fieldtype": "Data",
+   "label": "OAuth Token URL",
+   "description": "Overrides the environment default (https://test.oauth.openapi.it/token)."
+  },
+  {
+   "fieldname": "timeout_seconds",
+   "fieldtype": "Int",
+   "label": "Timeout (s)",
+   "default": "30"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "MSP",
+ "name": "MSP Signature Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -43,7 +43,7 @@ app_license = "agpl-3.0"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {"Task": "public/js/task_field_service.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -167,6 +167,12 @@ has_permission = {
 
 # Scheduled Tasks
 # ---------------
+
+scheduler_events = {
+	"hourly": [
+		"fab_msp.esignature.poll_pending_signatures",
+	],
+}
 
 # scheduler_events = {
 # 	"all": [
