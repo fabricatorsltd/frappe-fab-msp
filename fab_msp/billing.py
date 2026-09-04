@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import frappe
-from frappe.utils import flt, today
+from frappe.utils import add_years, flt, getdate, today
 
 from fab_msp.fulfillment import (
+    _customer_company,
     _customer_rate,
     _customer_tax_template,
     _erp_customer,
@@ -47,30 +48,65 @@ def generate_consolidated_invoices(posting_date: str | None = None) -> list[str]
     return created
 
 
+def _is_annual(pool) -> bool:
+    return (pool.get("billing_interval") or "Monthly") == "Annual"
+
+
+def _added_by_pool(charges) -> dict[str, float]:
+    """Seats added this period, per pool: they come in as their own lines."""
+    added: dict[str, float] = {}
+    for c in charges:
+        if c.get("customer_service"):
+            added[c["customer_service"]] = added.get(c["customer_service"], 0) + flt(c["qty"])
+    return added
+
+
+def _base_qty(pool, added_by_pool) -> float:
+    return flt(pool["quantity"]) - added_by_pool.get(pool["name"], 0)
+
+
+def _bills_this_period(pool, posting_date) -> bool:
+    """Monthly pools bill every month, annual ones only in their renewal month."""
+    if not _is_annual(pool):
+        return True
+    return bool(pool.get("renewal_date")) and str(pool["renewal_date"])[5:7] == posting_date[5:7]
+
+
+def annual_pools_billed(posting_date, pools, charges) -> list[str]:
+    """The annual pools that get a base line this period, so their renewal date
+    can be moved on a year once the invoice exists."""
+    added_by_pool = _added_by_pool(charges)
+    return [
+        p["name"]
+        for p in pools
+        if _is_annual(p)
+        and _bills_this_period(p, posting_date)
+        and p.get("billing_item")
+        and _base_qty(p, added_by_pool) > 0
+    ]
+
+
 def build_consolidated_items(posting_date, pools, charges, rate_fn) -> list[dict]:
     """Pure line builder for a consolidated invoice.
 
     - monthly services bill every month; annual only in their renewal month
       (matched by month-of-year);
+    - monthly lines come first, annual ones after, each group keeping the order
+      the pools were given in;
     - the base excludes seats added this period (they arrive as addition lines);
     - deferred additions are appended as their own lines.
     """
-    added_by_pool: dict[str, float] = {}
-    for c in charges:
-        if c.get("customer_service"):
-            added_by_pool[c["customer_service"]] = added_by_pool.get(c["customer_service"], 0) + flt(c["qty"])
-
-    month_of_year = posting_date[5:7]
+    added_by_pool = _added_by_pool(charges)
     items: list[dict] = []
-    for pool in pools:
-        base_qty = flt(pool["quantity"]) - added_by_pool.get(pool["name"], 0)
+    for pool in sorted(pools, key=_is_annual):
+        base_qty = _base_qty(pool, added_by_pool)
         if not pool.get("billing_item") or base_qty <= 0:
             continue
+        if not _bills_this_period(pool, posting_date):
+            continue
         rate = flt(rate_fn(pool["billing_item"]))
-        if (pool.get("billing_interval") or "Monthly") == "Annual":
-            if not pool.get("renewal_date") or str(pool["renewal_date"])[5:7] != month_of_year:
-                continue
-            description = f"{pool['service_label']} - annual {str(pool['renewal_date'])[:4]}"
+        if _is_annual(pool):
+            description = f"{pool['service_label']} - annual {posting_date[:4]}"
         else:
             description = f"{pool['service_label']} - recurring {posting_date[:7]}"
         items.append(
@@ -90,25 +126,42 @@ def build_consolidated_items(posting_date, pools, charges, rate_fn) -> list[dict
 def generate_for_customer(customer: str, posting_date: str | None = None) -> str | None:
     """One draft invoice for a customer: recurring base of active pools plus the
     period's deferred additions. The base excludes the seats added this period
-    (they come in as their own addition lines) so nothing is billed twice."""
+    (they come in as their own addition lines) so nothing is billed twice.
+
+    One invoice per customer and period: the remark is the key, so a second run
+    for the same period returns the invoice already there."""
     posting_date = posting_date or today()
     erp = _erp_customer(customer)
+    remark = f"MSP consolidated invoice {posting_date[:7]}"
 
-    charges = frappe.get_all(
-        "MSP Billing Charge",
-        filters={"customer": erp, "status": "Unbilled"},
-        fields=["name", "item", "qty", "rate", "description", "customer_service"],
+    existing = frappe.db.get_value(
+        "Sales Invoice", {"customer": erp, "remarks": remark, "docstatus": ["<", 2]}, "name"
     )
-    pools = frappe.get_all(
-        "Customer Service",
-        filters={"customer": customer, "status": "Active", "billing_mode": "Recurring"},
-        fields=["name", "billing_item", "quantity", "service_label", "billing_interval", "renewal_date"],
-    )
+    if existing:
+        return existing
+
+    charges = [
+        dict(c)
+        for c in frappe.get_all(
+            "MSP Billing Charge",
+            filters={"customer": erp, "status": "Unbilled"},
+            fields=["name", "item", "qty", "rate", "description", "customer_service"],
+        )
+    ]
+    pools = [
+        dict(p)
+        for p in frappe.get_all(
+            "Customer Service",
+            filters={"customer": customer, "status": "Active", "billing_mode": "Recurring"},
+            fields=["name", "billing_item", "quantity", "service_label", "billing_interval", "renewal_date"],
+            order_by="creation asc",
+        )
+    ]
     items = build_consolidated_items(
         posting_date,
-        [dict(p) for p in pools],
-        [dict(c) for c in charges],
-        lambda item: _customer_rate(customer, item, None),
+        pools,
+        charges,
+        lambda item: _customer_rate(customer, item, None, posting_date),
     )
     if not items:
         return None
@@ -117,10 +170,12 @@ def generate_for_customer(customer: str, posting_date: str | None = None) -> str
         {
             "doctype": "Sales Invoice",
             "customer": erp,
+            "company": _customer_company(erp),
             "posting_date": posting_date,
+            "set_posting_time": 1,  # keep the requested date, ERPNext defaults to today
             "ignore_pricing_rule": 1,
             "items": items,
-            "remarks": f"MSP consolidated invoice {posting_date[:7]}",
+            "remarks": remark,
         }
     )
     template = _customer_tax_template(erp)
@@ -136,6 +191,11 @@ def generate_for_customer(customer: str, posting_date: str | None = None) -> str
 
     for c in charges:
         frappe.db.set_value(
-            "MSP Billing Charge", c.name, {"status": "Billed", "sales_invoice": si.name}
+            "MSP Billing Charge", c["name"], {"status": "Billed", "sales_invoice": si.name}
         )
+    # an annual pool is due again a year after the period just billed
+    for pool in annual_pools_billed(posting_date, pools, charges):
+        renewal = frappe.db.get_value("Customer Service", pool, "renewal_date")
+        if renewal:
+            frappe.db.set_value("Customer Service", pool, "renewal_date", add_years(getdate(renewal), 1))
     return si.name

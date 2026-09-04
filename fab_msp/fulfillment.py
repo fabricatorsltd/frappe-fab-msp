@@ -166,23 +166,62 @@ def _customer_price_list(customer) -> str:
     )
 
 
-def _customer_rate(customer, item, cs) -> float:
-    """Annual rate from the customer's own price list, falling back to the
-    default list, then the item's standard rate."""
+def _customer_company(customer) -> str | None:
+    """Company an invoice for this customer belongs to: the one the customer is
+    restricted to, else the session default."""
+    company = customer and frappe.db.get_value(
+        "Allowed To Transact With", {"parent": customer, "parenttype": "Customer"}, "company"
+    )
+    return company or frappe.defaults.get_user_default("Company")
+
+
+def _billing_currency(customer) -> str | None:
+    """The currency the invoice is raised in: the customer's, else the company's."""
+    company = _customer_company(customer)
+    return (
+        (customer and frappe.db.get_value("Customer", customer, "default_currency"))
+        or (company and frappe.db.get_value("Company", company, "default_currency"))
+        or frappe.db.get_default("currency")
+    )
+
+
+def _valid_price(item, price_list, on_date, currency, customer) -> float | None:
+    """The selling price valid on a date: a row tied to this customer wins over
+    a generic one, otherwise the most recently started row."""
+    rows = [
+        p
+        for p in frappe.get_all(
+            "Item Price",
+            filters={"item_code": item, "selling": 1, "price_list": price_list},
+            fields=["price_list_rate", "currency", "valid_from", "valid_upto", "customer"],
+            order_by="valid_from desc",
+        )
+        if (not currency or p.currency == currency)
+        and (not p.valid_from or getdate(p.valid_from) <= on_date)
+        and (not p.valid_upto or getdate(p.valid_upto) >= on_date)
+    ]
+    if not rows:
+        return None
+    own = next((p for p in rows if p.customer and p.customer == customer), None)
+    return flt((own or rows[0]).price_list_rate)
+
+
+def _customer_rate(customer, item, cs, posting_date=None) -> float:
+    """Rate from the customer's own price list, falling back to the default
+    list, then the item's standard rate. Only prices valid on the posting date
+    and in the invoice currency count."""
     if cs and cs.get("billing_item"):
         item = cs.billing_item or item
     if not item:
         return 0.0
+    on_date = getdate(posting_date or today())
+    currency = _billing_currency(customer)
     for price_list in (_customer_price_list(customer), "Standard Selling"):
-        price = frappe.get_all(
-            "Item Price",
-            filters={"item_code": item, "selling": 1, "price_list": price_list},
-            fields=["price_list_rate"],
-            order_by="valid_from desc",
-            limit=1,
-        )
-        if price:
-            return flt(price[0].price_list_rate)
+        if currency and frappe.db.get_value("Price List", price_list, "currency") != currency:
+            continue
+        rate = _valid_price(item, price_list, on_date, currency, customer)
+        if rate is not None:
+            return rate
     return flt(frappe.db.get_value("Item", item, "standard_rate"))
 
 
@@ -228,12 +267,36 @@ def default_mode_of_payment() -> str | None:
     return None
 
 
+def _payment_terms_template(si) -> str | None:
+    """The template ERPNext would apply to this invoice: the customer's, else
+    the company's."""
+    customer = si.get("customer")
+    company = si.get("company") or _customer_company(customer)
+    return (
+        (customer and frappe.db.get_value("Customer", customer, "payment_terms"))
+        or (company and frappe.db.get_value("Company", company, "payment_terms"))
+        or None
+    )
+
+
 def set_payment_schedule(si) -> None:
-    """FatturaPA needs a mode of payment on the payment schedule."""
+    """FatturaPA needs a mode of payment on the payment schedule.
+
+    With a payment terms template ERPNext builds the schedule itself on validate,
+    from terms that carry their own mode of payment, so we leave the template on
+    the invoice and the rows to it: hand-building a single row due on the posting
+    date would contradict the template and break its due-date validation. Only
+    without any template do we write that row ourselves.
+    """
+    template = si.get("payment_terms_template") or _payment_terms_template(si)
+    si.set("payment_schedule", [])
+    if template:
+        si.payment_terms_template = template
+        return
     mop = default_mode_of_payment()
     if not mop:
         return
-    si.set("payment_schedule", [])
+    si.payment_terms_template = None
     si.append(
         "payment_schedule",
         {"due_date": si.get("posting_date") or today(), "invoice_portion": 100, "mode_of_payment": mop},
