@@ -262,6 +262,20 @@ def _set_technician_user(doc):
         doc.fab_fs_technician_user = users[0]
 
 
+def propagate_field_service_flag(doc, method=None):
+    """Tasks only fetch the project's flag on their own save, so copy it onto them
+    when the project changes it."""
+    if not doc.has_value_changed("fab_fs_field_service"):
+        return
+    frappe.db.set_value(
+        "Task",
+        {"project": doc.name},
+        "fab_fs_project_field_service",
+        doc.get("fab_fs_field_service") or 0,
+        update_modified=False,
+    )
+
+
 def maybe_bill_on_close(doc, method=None):
     """Completing a task with a parte bills the intervention; later edits to the
     hours or the fees reach the charges that are not on an invoice yet."""

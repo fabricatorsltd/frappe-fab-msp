@@ -144,6 +144,9 @@ doc_events = {
 		"validate": "fab_msp.ticket.apply_service_rules",
 		"on_update": "fab_msp.ticket.maybe_fulfill_on_close",
 	},
+	"Project": {
+		"on_update": "fab_msp.field_service.propagate_field_service_flag",
+	},
 	"Task": {
 		"validate": "fab_msp.field_service.apply_field_service_defaults",
 		"on_update": "fab_msp.field_service.maybe_bill_on_close",

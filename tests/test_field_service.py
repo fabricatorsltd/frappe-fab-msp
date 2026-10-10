@@ -283,6 +283,27 @@ class TestParteVisibility(unittest.TestCase):
         self.assertEqual(self.project["fab_fs_field_service"]["fieldtype"], "Check")
 
 
+class TestFieldServiceFlagPropagation(unittest.TestCase):
+    def project(self, changed):
+        return SimpleNamespace(
+            name="PROJ-0002",
+            has_value_changed=lambda field: changed,
+            get=lambda field: 1,
+        )
+
+    def test_a_changed_flag_is_copied_onto_the_tasks(self):
+        with patch.object(field_service, "frappe") as frappe:
+            field_service.propagate_field_service_flag(self.project(changed=True))
+        frappe.db.set_value.assert_called_once_with(
+            "Task", {"project": "PROJ-0002"}, "fab_fs_project_field_service", 1, update_modified=False
+        )
+
+    def test_an_unchanged_flag_touches_no_task(self):
+        with patch.object(field_service, "frappe") as frappe:
+            field_service.propagate_field_service_flag(self.project(changed=False))
+        frappe.db.set_value.assert_not_called()
+
+
 class Doc(dict):
     """The smallest thing has_permission touches: a doc with .get()."""
 
