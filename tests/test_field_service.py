@@ -265,6 +265,24 @@ class TestTechnicianVisibility(unittest.TestCase):
             self.assertFalse(field_service.task_has_permission(Doc({})))
 
 
+class TestParteVisibility(unittest.TestCase):
+    def setUp(self):
+        fields = field_service.get_custom_fields()
+        self.task = {f["fieldname"]: f for f in fields["Task"]}
+        self.project = {f["fieldname"]: f for f in fields["Project"]}
+
+    def test_parte_shows_only_on_field_service_projects_or_once_set(self):
+        self.assertEqual(
+            self.task["fab_fs_parte"]["depends_on"],
+            "eval:doc.fab_fs_project_field_service || doc.fab_fs_parte",
+        )
+
+    def test_the_task_flag_comes_from_its_project(self):
+        flag = self.task["fab_fs_project_field_service"]
+        self.assertEqual(flag["fetch_from"], "project.fab_fs_field_service")
+        self.assertEqual(self.project["fab_fs_field_service"]["fieldtype"], "Check")
+
+
 class Doc(dict):
     """The smallest thing has_permission touches: a doc with .get()."""
 

@@ -593,6 +593,7 @@ def ensure_trison_setup() -> str | None:
                 "project_name": TRISON_PROJECT,
                 "customer": TRISON_CUSTOMER,
                 "status": "Open",
+                "fab_fs_field_service": 1,
             }
         )
         doc.insert(ignore_permissions=True)
@@ -629,8 +630,26 @@ def _seed_trison_customer(first_run: bool) -> None:
 def get_custom_fields() -> dict:
     """The field service fields, merged into install.get_custom_fields()."""
     return {
+        "Project": [
+            {
+                "fieldname": "fab_fs_field_service",
+                "label": "Field Service",
+                "fieldtype": "Check",
+                "insert_after": "customer",
+                "description": "Tasks of this project are on-site interventions and show the Parte field.",
+            },
+        ],
         # one Task is one on-site intervention: the Trison parte de ticket
         "Task": [
+            {
+                "fieldname": "fab_fs_project_field_service",
+                "label": "Field Service Project",
+                "fieldtype": "Check",
+                "insert_after": "project",
+                "fetch_from": "project.fab_fs_field_service",
+                "read_only": 1,
+                "hidden": 1,
+            },
             {
                 "fieldname": "fab_fs_section",
                 "label": "Field Service",
@@ -642,6 +661,7 @@ def get_custom_fields() -> dict:
                 "label": "Parte",
                 "fieldtype": "Data",
                 "insert_after": "fab_fs_section",
+                "depends_on": "eval:doc.fab_fs_project_field_service || doc.fab_fs_parte",
                 "in_list_view": 1,
                 "in_standard_filter": 1,
                 "description": "The Trison parte number, e.g. A26/015047. Setting it makes the task an intervention.",

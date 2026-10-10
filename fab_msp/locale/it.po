@@ -164,3 +164,18 @@ msgstr "Una tantum"
 msgid "Recurring"
 msgstr "Ricorrente"
 
+
+msgid "Parte"
+msgstr "Parte Trison"
+
+msgid "The Trison parte number, e.g. A26/015047. Setting it makes the task an intervention."
+msgstr "Il numero del parte Trison, es. A26/015047. Compilarlo rende il task un intervento."
+
+msgid "Field Service"
+msgstr "Interventi in loco"
+
+msgid "Field Service Project"
+msgstr "Progetto interventi in loco"
+
+msgid "Tasks of this project are on-site interventions and show the Parte field."
+msgstr "I task di questo progetto sono interventi in loco e mostrano il campo Parte Trison."
