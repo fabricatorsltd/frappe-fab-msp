@@ -29,12 +29,21 @@ def _fulfill(ticket_name: str) -> dict:
         return {"skipped": "nothing to do"}
 
     cs = _target_service(t, rules)
+    if cs:
+        # the linked service decides what is billed, so one ticket type serves every licence
+        rules.update(
+            billing_item=cs.get("billing_item") or rules["billing_item"],
+            mode=cs.get("billing_mode") or rules["mode"],
+            interval=cs.get("billing_interval") or rules["interval"],
+        )
     result = {"customer_service": cs.name if cs else None}
 
     if not rules["billable"]:
         _link(t, customer_service=cs)
         return result
 
+    if not rules["billing_item"]:
+        frappe.throw(frappe._("Set a billing item on the linked service or on the ticket type."))
     rate = _customer_rate(t.customer, rules["billing_item"], cs)
     qty = int(t.get("fab_quantity") or 1)
 
