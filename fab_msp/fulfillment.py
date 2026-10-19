@@ -31,11 +31,11 @@ def _fulfill(ticket_name: str) -> dict:
     cs = _target_service(t, rules)
     if cs:
         # the linked service decides what is billed, so one ticket type serves every licence
-        rules.update(
-            billing_item=cs.get("billing_item") or rules["billing_item"],
-            mode=cs.get("billing_mode") or rules["mode"],
-            interval=cs.get("billing_interval") or rules["interval"],
-        )
+        if cs.get("billing_item"):
+            rules["billing_item"] = cs.billing_item
+        # "None" is the unset default, so the ticket type's term still applies
+        if cs.get("billing_mode") in ("One-time", "Recurring"):
+            rules.update(mode=cs.billing_mode, interval=cs.get("billing_interval") or rules["interval"])
     result = {"customer_service": cs.name if cs else None}
 
     if not rules["billable"]:
