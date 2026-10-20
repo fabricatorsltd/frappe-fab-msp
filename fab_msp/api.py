@@ -328,8 +328,8 @@ def _send_ticket_mail(ticket_doc, recipient, subject, body, marker=False) -> Non
             "subject": subject,
         }
     )
-    if last and last.message_id:
-        communication.in_reply_to = last.name
+    if last:
+        communication.in_reply_to = last
     communication.insert(ignore_permissions=True)
     frappe.sendmail(
         communication=communication.name,
