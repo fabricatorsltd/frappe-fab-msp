@@ -9,7 +9,6 @@ from helpdesk.helpdesk.doctype.hd_settings.helpers import (
     branded_email,
     customer_portal,
     get_default_language,
-    mail_page,
     mail_styles,
     resolve_ticket_language,
     use_language,
@@ -236,11 +235,6 @@ def _cost_lines(quote, money, date) -> list[str]:
     return []
 
 
-def _signature() -> str:
-    page = mail_page()
-    return _("{0} support").format(page.brand()["name"] if page else "FABRICATORS")
-
-
 def _detail_table(rows) -> str:
     cells = "\n".join(
         f'  <tr><td style="{DETAIL_LABEL}">{label}</td><td style="{DETAIL_VALUE}">{value}</td></tr>'
@@ -271,7 +265,6 @@ def _approval_request_body(quote, requester, link) -> str:
 <p>{_("Please open the request and click Approve or Reject:")}</p>
 <p><a href="{link}" style="{style.button}">{_("Open the request")}</a></p>
 <p>{_("We will not make the change until it is approved.")}</p>
-<p style="margin:0;">{escape_html(_signature())}</p>
 """
 
 
@@ -288,7 +281,6 @@ def _decision_body(ticket_doc, decision, approver) -> str:
 <p>{_("Hello,")}</p>
 <p>{escape_html(text.format(ticket_doc.name, approver))}</p>
 <p style="{style.request_box}"><strong>{_("Request no.")} {ticket_doc.name}</strong><br>{escape_html(ticket_doc.subject or "")}</p>{link}
-<p style="margin:0;">{escape_html(_signature())}</p>
 """
 
 

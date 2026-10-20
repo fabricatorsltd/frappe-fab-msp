@@ -234,9 +234,6 @@ msgstr "Apri la richiesta"
 msgid "We will not make the change until it is approved."
 msgstr "Non faremo la modifica finché non sarà approvata."
 
-msgid "{0} support"
-msgstr "Supporto {0}"
-
 msgid "Your request #{0} was approved by {1}. We will now proceed with the change."
 msgstr "La tua richiesta #{0} è stata approvata da {1}. Procederemo ora con la modifica."
 
