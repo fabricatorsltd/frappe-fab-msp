@@ -164,3 +164,83 @@ msgstr "Ponctuel"
 msgid "Recurring"
 msgstr "Récurrent"
 
+msgid "Approval needed: {0} (#{1})"
+msgstr "Approbation requise : {0} (#{1})"
+
+msgid "Hello,"
+msgstr "Bonjour,"
+
+msgid "{0} has asked us for a change that needs a manager's approval:"
+msgstr "{0} nous a demandé une modification qui nécessite l'approbation d'un responsable :"
+
+msgctxt "Approval mail"
+msgid "Service"
+msgstr "Service"
+
+msgctxt "Approval mail"
+msgid "Change"
+msgstr "Modification"
+
+msgctxt "Approval mail"
+msgid "Cost"
+msgstr "Coût"
+
+msgid "+{0} licence"
+msgstr "+{0} licence"
+
+msgid "+{0} licences"
+msgstr "+{0} licences"
+
+msgid "+{0} licence ({1} -> {2})"
+msgstr "+{0} licence ({1} -> {2})"
+
+msgid "+{0} licences ({1} -> {2})"
+msgstr "+{0} licences ({1} -> {2})"
+
+msgid "{0} now, pro-rata until the {1} renewal"
+msgstr "{0} maintenant, au prorata jusqu'au renouvellement du {1}"
+
+msgid "({0} per licence per year after that)"
+msgstr "(puis {0} par licence et par an)"
+
+msgid "({0} per licence per month after that)"
+msgstr "(puis {0} par licence et par mois)"
+
+msgid "{0}, one-time charge"
+msgstr "{0}, frais unique"
+
+msgid "Please open the request and click Approve or Reject:"
+msgstr "Ouvrez la demande et cliquez sur Approuver ou Rejeter :"
+
+msgid "Open the request"
+msgstr "Ouvrir la demande"
+
+msgid "We will not make the change until it is approved."
+msgstr "Nous n'effectuerons pas la modification tant qu'elle n'aura pas été approuvée."
+
+msgid "{0} support"
+msgstr "Support {0}"
+
+msgid "Your request #{0} was approved by {1}. We will now proceed with the change."
+msgstr "Votre demande #{0} a été approuvée par {1}. Nous allons maintenant effectuer la modification."
+
+msgid "Your request #{0} was rejected by {1}, so we will not make the change."
+msgstr "Votre demande #{0} a été rejetée par {1}, nous n'effectuerons donc pas la modification."
+
+msgid "Request no."
+msgstr "Demande n°"
+
+msgid "Request approved: {0} (#{1})"
+msgstr "Demande approuvée : {0} (#{1})"
+
+msgid "Request rejected: {0} (#{1})"
+msgstr "Demande rejetée : {0} (#{1})"
+
+msgid "Approved by {0} on {1}."
+msgstr "Approuvé par {0} le {1}."
+
+msgid "Rejected by {0} on {1}."
+msgstr "Rejeté par {0} le {1}."
+
+msgid "No outgoing Email Account is configured for the helpdesk"
+msgstr "Aucun compte e-mail sortant n'est configuré pour le helpdesk"

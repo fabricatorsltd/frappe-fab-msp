@@ -2,7 +2,20 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
+from frappe.utils import escape_html, fmt_money, format_date, format_datetime, now_datetime
+from helpdesk.helpdesk.doctype.hd_settings.helpers import (
+    DETAIL_LABEL,
+    DETAIL_VALUE,
+    branded_email,
+    customer_portal,
+    get_default_language,
+    mail_page,
+    mail_styles,
+    resolve_ticket_language,
+    use_language,
+)
 from helpdesk.helpdesk.doctype.hd_ticket.hd_ticket import _is_customer_manager
+from helpdesk.helpdesk.utils.email import helpdesk_outgoing_email_account
 from helpdesk.utils import get_helpdesk_url
 
 INTERNAL_APPROVER_ROLES = {"Agent Manager", "System Manager"}
@@ -118,8 +131,32 @@ def request_approval(ticket: str) -> str:
         frappe.throw(_("This request is not awaiting approval."))
     approval_by, _effect = _ticket_type_rules(t)
     t.db_set("fab_approval_status", "Pending")
+    # waiting on the customer's manager, so the ticket is parked, not open
+    _move_to_category(t, "Paused")
     _notify_approvers(t, approval_by)
     return "Pending"
+
+
+def _status_for_category(statuses, category) -> str | None:
+    """The first status of `category` by its order, from HD Ticket Status rows."""
+    rows = [s for s in statuses if s.get("category") == category]
+    rows.sort(key=lambda s: (s.get("order") is None, s.get("order") or 0, s.get("name")))
+    return rows[0]["name"] if rows else None
+
+
+def _move_to_category(ticket_doc, category) -> None:
+    if ticket_doc.get("status_category") == category:
+        return
+    statuses = frappe.get_all(
+        "HD Ticket Status", filters={"enabled": 1}, fields=["name", "category", "order"]
+    )
+    status = _status_for_category(statuses, category)
+    if not status or ticket_doc.status == status:
+        return
+    ticket_doc.status = status
+    ticket_doc.status_category = category
+    ticket_doc.flags.ignore_permissions = True
+    ticket_doc.save()
 
 
 def _approver_emails(ticket_doc, approval_by) -> list[str]:
@@ -147,41 +184,184 @@ def _notify_approvers(ticket_doc, approval_by) -> None:
     if not recipients:
         return
     path = "/helpdesk/my-tickets/" if approval_by == "Customer Manager" else "/helpdesk/tickets/"
-    context = {
-        "subject": ticket_doc.subject or ticket_doc.name,
-        "ticket": ticket_doc.name,
-        "link": get_helpdesk_url(path + ticket_doc.name),
-    }
-    template = (
-        frappe.get_doc("Email Template", "MSP Approval Requested")
-        if frappe.db.exists("Email Template", "MSP Approval Requested")
-        else None
-    )
+    link = get_helpdesk_url(path + ticket_doc.name)
+    from fab_msp.fulfillment import quote_ticket
+
+    quote = quote_ticket(ticket_doc)
+    requester = _requester_name(ticket_doc)
     default_lang = frappe.db.get_single_value("System Settings", "language") or "en"
-    original_lang = frappe.local.lang
 
     # render per recipient so each gets the mail in their own language
     for recipient in recipients:
-        frappe.local.lang = frappe.db.get_value("User", recipient, "language") or default_lang
-        try:
-            if template:
-                subject = frappe.render_template(template.subject, context)
-                message = frappe.render_template(template.response_html or template.response, context)
-            else:
-                subject = _("Approval requested") + ": " + context["subject"]
-                message = (
-                    "<p>" + _("A service request needs your approval.") + "</p>"
-                    + f'<p><a href="{context["link"]}">{ticket_doc.name}</a></p>'
-                )
-            frappe.sendmail(
-                recipients=[recipient],
-                subject=subject,
-                message=message,
-                reference_doctype="HD Ticket",
-                reference_name=ticket_doc.name,
-            )
-        finally:
-            frappe.local.lang = original_lang
+        lang = frappe.db.get_value("User", recipient, "language") or default_lang
+        with use_language(lang):
+            subject = _("Approval needed: {0} (#{1})").format(ticket_doc.subject or ticket_doc.name, ticket_doc.name)
+            body = _approval_request_body(quote, requester, link)
+            _send_ticket_mail(ticket_doc, recipient, subject, body)
+
+
+def _requester_name(ticket_doc) -> str:
+    name = ticket_doc.get("contact") and frappe.db.get_value("Contact", ticket_doc.contact, "full_name")
+    raised_by = ticket_doc.get("raised_by") or ""
+    return name or frappe.db.get_value("User", raised_by, "full_name") or raised_by
+
+
+def _money(amount, currency) -> str:
+    return f"{currency} {fmt_money(amount, 2)}" if currency else fmt_money(amount, 2)
+
+
+def _change_text(quote) -> str:
+    qty, current = quote["qty"], quote.get("current_qty")
+    if current is None:
+        return (_("+{0} licence") if qty == 1 else _("+{0} licences")).format(qty)
+    text = _("+{0} licence ({1} -> {2})") if qty == 1 else _("+{0} licences ({1} -> {2})")
+    return text.format(qty, current, current + qty)
+
+
+def _cost_lines(quote, money, date) -> list[str]:
+    """The cost of the change as fulfillment will bill it, one line each; none
+    when there is no price to show. `money` and `date` format the values."""
+    if quote.get("kind") == "prorata":
+        per = (
+            _("({0} per licence per month after that)")
+            if quote.get("interval") == "Monthly"
+            else _("({0} per licence per year after that)")
+        )
+        return [
+            _("{0} now, pro-rata until the {1} renewal").format(money(quote["total"]), date(quote["renewal_date"])),
+            per.format(money(quote["rate"])),
+        ]
+    if quote.get("kind") == "one_time":
+        return [_("{0}, one-time charge").format(money(quote["total"]))]
+    return []
+
+
+def _signature() -> str:
+    page = mail_page()
+    return _("{0} support").format(page.brand()["name"] if page else "FABRICATORS")
+
+
+def _detail_table(rows) -> str:
+    cells = "\n".join(
+        f'  <tr><td style="{DETAIL_LABEL}">{label}</td><td style="{DETAIL_VALUE}">{value}</td></tr>'
+        for label, value in rows
+    )
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        f'style="margin:0 0 20px;border-collapse:collapse;font-size:14px;">\n{cells}\n</table>'
+    )
+
+
+def _approval_request_body(quote, requester, link) -> str:
+    style = mail_styles()
+    rows = []
+    if quote.get("service"):
+        rows.append((_("Service", context="Approval mail"), escape_html(quote["service"])))
+    rows.append((_("Change", context="Approval mail"), escape_html(_change_text(quote))))
+    currency = quote.get("currency")
+    cost = _cost_lines(
+        quote, lambda amount: _money(amount, currency), lambda d: format_date(d, "dd/mm/yyyy")
+    )
+    if cost:
+        rows.append((_("Cost", context="Approval mail"), "<br>".join(escape_html(line) for line in cost)))
+    return f"""\
+<p>{_("Hello,")}</p>
+<p>{escape_html(_("{0} has asked us for a change that needs a manager's approval:").format(requester))}</p>
+{_detail_table(rows)}
+<p>{_("Please open the request and click Approve or Reject:")}</p>
+<p><a href="{link}" style="{style.button}">{_("Open the request")}</a></p>
+<p>{_("We will not make the change until it is approved.")}</p>
+<p style="margin:0;">{escape_html(_signature())}</p>
+"""
+
+
+def _decision_body(ticket_doc, decision, approver) -> str:
+    style = mail_styles()
+    if decision == "Approved":
+        text = _("Your request #{0} was approved by {1}. We will now proceed with the change.")
+    else:
+        text = _("Your request #{0} was rejected by {1}, so we will not make the change.")
+    link = ""
+    if customer_portal():
+        link = f'\n<p><a href="{ticket_doc.portal_uri}" style="{style.link}">{_("Open the request")}</a></p>'
+    return f"""\
+<p>{_("Hello,")}</p>
+<p>{escape_html(text.format(ticket_doc.name, approver))}</p>
+<p style="{style.request_box}"><strong>{_("Request no.")} {ticket_doc.name}</strong><br>{escape_html(ticket_doc.subject or "")}</p>{link}
+<p style="margin:0;">{escape_html(_signature())}</p>
+"""
+
+
+def _send_ticket_mail(ticket_doc, recipient, subject, body, marker=False) -> None:
+    """Mail `body` from the helpdesk mailbox in the site's branded page and
+    file it on the ticket thread. Call it in the recipient's language.
+
+    Filed as an automated message, like the inactivity mails, so it is not
+    taken for an agent reply (first response, SLA, auto status)."""
+    sender = helpdesk_outgoing_email_account()
+    if not sender:
+        frappe.throw(_("No outgoing Email Account is configured for the helpdesk"))
+    email = branded_email(body, subject, marker=marker)
+    last = ticket_doc.get_last_communication()
+    communication = frappe.get_doc(
+        {
+            "doctype": "Communication",
+            "communication_medium": "Email",
+            "communication_type": "Automated Message",
+            "content": body,
+            "email_account": sender.name,
+            "email_status": "Open",
+            "recipients": recipient,
+            "reference_doctype": "HD Ticket",
+            "reference_name": ticket_doc.name,
+            "sender": sender.email_id,
+            "sent_or_received": "Sent",
+            "status": "Linked",
+            "subject": subject,
+        }
+    )
+    if last and last.message_id:
+        communication.in_reply_to = last.name
+    communication.insert(ignore_permissions=True)
+    frappe.sendmail(
+        communication=communication.name,
+        recipients=[recipient],
+        reference_doctype="HD Ticket",
+        reference_name=ticket_doc.name,
+        reply_to=sender.email_id,
+        sender=sender.email_id,
+        subject=subject,
+        with_container=False,
+        in_reply_to=last.name if last else None,
+        email_headers={"X-Auto-Generated": "msp-approval"},
+        **email,
+    )
+
+
+def _record_decision(ticket_doc, decision) -> None:
+    """Note the decision on the ticket for the agents, reopen it and tell the
+    requester."""
+    user = frappe.session.user
+    approver = frappe.db.get_value("User", user, "full_name") or user
+    with use_language(get_default_language()):
+        text = _("Approved by {0} on {1}.") if decision == "Approved" else _("Rejected by {0} on {1}.")
+        content = escape_html(text.format(approver, format_datetime(now_datetime())))
+    comment = frappe.new_doc("HD Ticket Comment")
+    comment.commented_by = user
+    comment.content = f"<p>{content}</p>"
+    comment.reference_ticket = ticket_doc.name
+    comment.insert(ignore_permissions=True)
+
+    _move_to_category(ticket_doc, "Open")
+
+    addresses = ticket_doc._strip_own_mailboxes(ticket_doc.raised_by) if ticket_doc.raised_by else []
+    if not addresses:
+        return
+    with use_language(resolve_ticket_language(ticket_doc)):
+        subject_text = _("Request approved: {0} (#{1})") if decision == "Approved" else _("Request rejected: {0} (#{1})")
+        subject = subject_text.format(ticket_doc.subject or ticket_doc.name, ticket_doc.name)
+        body = _decision_body(ticket_doc, decision, approver)
+        _send_ticket_mail(ticket_doc, addresses[0], subject, body, marker=True)
 
 
 @frappe.whitelist()
@@ -211,4 +391,7 @@ def set_ticket_approval(ticket: str, decision: str) -> str:
         from fab_msp.fulfillment import fulfill_ticket
 
         fulfill_ticket(t.name)
+        # fulfillment writes the ticket through its own copy
+        t = frappe.get_doc("HD Ticket", ticket)
+    _record_decision(t, decision)
     return decision

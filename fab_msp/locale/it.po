@@ -179,3 +179,84 @@ msgstr "Progetto interventi in loco"
 
 msgid "Tasks of this project are on-site interventions and show the Parte field."
 msgstr "I task di questo progetto sono interventi in loco e mostrano il campo Parte Trison."
+
+msgid "Approval needed: {0} (#{1})"
+msgstr "Approvazione necessaria: {0} (#{1})"
+
+msgid "Hello,"
+msgstr "Buongiorno,"
+
+msgid "{0} has asked us for a change that needs a manager's approval:"
+msgstr "{0} ci ha chiesto una modifica che richiede l'approvazione di un responsabile:"
+
+msgctxt "Approval mail"
+msgid "Service"
+msgstr "Servizio"
+
+msgctxt "Approval mail"
+msgid "Change"
+msgstr "Modifica"
+
+msgctxt "Approval mail"
+msgid "Cost"
+msgstr "Costo"
+
+msgid "+{0} licence"
+msgstr "+{0} licenza"
+
+msgid "+{0} licences"
+msgstr "+{0} licenze"
+
+msgid "+{0} licence ({1} -> {2})"
+msgstr "+{0} licenza ({1} -> {2})"
+
+msgid "+{0} licences ({1} -> {2})"
+msgstr "+{0} licenze ({1} -> {2})"
+
+msgid "{0} now, pro-rata until the {1} renewal"
+msgstr "{0} ora, in proporzione fino al rinnovo del {1}"
+
+msgid "({0} per licence per year after that)"
+msgstr "(poi {0} per licenza all'anno)"
+
+msgid "({0} per licence per month after that)"
+msgstr "(poi {0} per licenza al mese)"
+
+msgid "{0}, one-time charge"
+msgstr "{0}, addebito una tantum"
+
+msgid "Please open the request and click Approve or Reject:"
+msgstr "Apri la richiesta e fai clic su Approva o Rifiuta:"
+
+msgid "Open the request"
+msgstr "Apri la richiesta"
+
+msgid "We will not make the change until it is approved."
+msgstr "Non faremo la modifica finché non sarà approvata."
+
+msgid "{0} support"
+msgstr "Supporto {0}"
+
+msgid "Your request #{0} was approved by {1}. We will now proceed with the change."
+msgstr "La tua richiesta #{0} è stata approvata da {1}. Procederemo ora con la modifica."
+
+msgid "Your request #{0} was rejected by {1}, so we will not make the change."
+msgstr "La tua richiesta #{0} è stata rifiutata da {1}, quindi non faremo la modifica."
+
+msgid "Request no."
+msgstr "Richiesta n."
+
+msgid "Request approved: {0} (#{1})"
+msgstr "Richiesta approvata: {0} (#{1})"
+
+msgid "Request rejected: {0} (#{1})"
+msgstr "Richiesta rifiutata: {0} (#{1})"
+
+msgid "Approved by {0} on {1}."
+msgstr "Approvato da {0} il {1}."
+
+msgid "Rejected by {0} on {1}."
+msgstr "Rifiutato da {0} il {1}."
+
+msgid "No outgoing Email Account is configured for the helpdesk"
+msgstr "Nessun account email in uscita è configurato per l'helpdesk"

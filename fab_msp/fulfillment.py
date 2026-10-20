@@ -29,13 +29,7 @@ def _fulfill(ticket_name: str) -> dict:
         return {"skipped": "nothing to do"}
 
     cs = _target_service(t, rules)
-    if cs:
-        # the linked service decides what is billed, so one ticket type serves every licence
-        if cs.get("billing_item"):
-            rules["billing_item"] = cs.billing_item
-        # "None" is the unset default, so the ticket type's term still applies
-        if cs.get("billing_mode") in ("One-time", "Recurring"):
-            rules.update(mode=cs.billing_mode, interval=cs.get("billing_interval") or rules["interval"])
+    _apply_service_rules(rules, cs)
     result = {"customer_service": cs.name if cs else None}
 
     if not rules["billable"]:
@@ -51,8 +45,8 @@ def _fulfill(ticket_name: str) -> dict:
     if rules["mode"] == "One-time":
         unit, desc = rate, "One-time charge"
     elif rules["coterm"] and cs and cs.renewal_date:
-        days = max(date_diff(cs.renewal_date, today()), 0)
-        unit, desc = flt(rate * days / 365.0, 2), f"Pro-rata to {cs.renewal_date} ({days} days)"
+        unit, days = prorata_unit(rate, cs.renewal_date)
+        desc = f"Pro-rata to {cs.renewal_date} ({days} days)"
     else:  # recurring, new pool
         if cs and not cs.renewal_date:
             cs.db_set("renewal_date", add_days(today(), 365))
@@ -83,6 +77,62 @@ def _fulfill(ticket_name: str) -> dict:
         result.update(sales_invoice=inv, subscription=sub)
 
     return result
+
+
+def _apply_service_rules(rules, cs) -> None:
+    if not cs:
+        return
+    # the linked service decides what is billed, so one ticket type serves every licence
+    if cs.get("billing_item"):
+        rules["billing_item"] = cs.billing_item
+    # "None" is the unset default, so the ticket type's term still applies
+    if cs.get("billing_mode") in ("One-time", "Recurring"):
+        rules.update(mode=cs.billing_mode, interval=cs.get("billing_interval") or rules["interval"])
+
+
+def prorata_unit(rate, renewal_date, on_date=None) -> tuple[float, int]:
+    """The charge per unit from `on_date` (today) to the renewal, the annual
+    rate over a 365-day year rounded to cents, and the days it covers."""
+    days = max(date_diff(renewal_date, on_date or today()), 0)
+    return flt(rate * days / 365.0, 2), days
+
+
+def quote_ticket(t) -> dict:
+    """What approving the ticket will charge, as fulfillment would bill it, for
+    the approval mail. `kind` is "prorata" or "one_time" when there is a price
+    to show, None otherwise (not billable, no price, or a new recurring pool)."""
+    rules = _rules(t)
+    cs = frappe.get_doc("Customer Service", t.fab_customer_service) if t.get("fab_customer_service") else None
+    _apply_service_rules(rules, cs)
+    qty = int(t.get("fab_quantity") or 1)
+    quote = {
+        "service": (cs.service_label or cs.name) if cs else None,
+        "qty": qty,
+        "current_qty": int(cs.quantity or 0) if cs else None,
+        "kind": None,
+    }
+    if not rules["billable"] or not rules["billing_item"]:
+        return quote
+    rate = _customer_rate(t.customer, rules["billing_item"], cs)
+    if not rate:
+        return quote
+    if rules["mode"] == "One-time":
+        unit, kind = rate, "one_time"
+    elif rules["coterm"] and cs and cs.renewal_date:
+        unit, _days = prorata_unit(rate, cs.renewal_date)
+        kind = "prorata"
+    else:
+        return quote
+    quote.update(
+        kind=kind,
+        rate=rate,
+        unit=unit,
+        total=flt(unit * qty, 2),
+        currency=_billing_currency(t.customer),
+        interval=rules["interval"],
+        renewal_date=cs.renewal_date if kind == "prorata" else None,
+    )
+    return quote
 
 
 def _is_consolidated(customer) -> bool:
