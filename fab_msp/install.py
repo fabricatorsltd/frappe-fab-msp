@@ -27,6 +27,19 @@ async function setupForm({ doc, call, updateField, createToast }) {
   const err = (message) => createToast({ message, type: "error" });
   // the server already saved the ticket; reload instead of saving a stale copy
   const reload = () => setTimeout(() => window.location.reload(), 1200);
+  // helpdesk's CustomActions binds onClick twice (@click and v-bind), so run each action once at a time
+  const once = (fn) => {
+    let busy = false;
+    return async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        await fn();
+      } finally {
+        busy = false;
+      }
+    };
+  };
   const actions = [];
 
   const openDoc = (dt, name) =>
@@ -36,7 +49,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
     actions.push({
       label: t("Create service"),
       iconLeft: "plus-circle",
-      onClick: async () => {
+      onClick: once(async () => {
         try {
           const name = await call("fab_msp.api.create_service_from_ticket", { ticket: doc.name });
           updateField("fab_customer_service", name);
@@ -45,7 +58,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
         } catch (e) {
           err(e.message || t("Could not create service"));
         }
-      },
+      }),
     });
   } else {
     actions.push({
@@ -59,7 +72,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
     actions.push({
       label: t("Request approval"),
       iconLeft: "send",
-      onClick: async () => {
+      onClick: once(async () => {
         try {
           await call("fab_msp.api.request_approval", { ticket: doc.name });
           reload();
@@ -67,7 +80,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
         } catch (e) {
           err(e.message || t("Could not request approval"));
         }
-      },
+      }),
     });
   }
 
@@ -75,7 +88,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
     actions.push({
       label: t("Approve"),
       iconLeft: "check",
-      onClick: async () => {
+      onClick: once(async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Approved" });
           reload();
@@ -83,12 +96,12 @@ async function setupForm({ doc, call, updateField, createToast }) {
         } catch (e) {
           err(e.message || t("Could not approve"));
         }
-      },
+      }),
     });
     actions.push({
       label: t("Reject"),
       iconLeft: "x",
-      onClick: async () => {
+      onClick: once(async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Rejected" });
           reload();
@@ -96,7 +109,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
         } catch (e) {
           err(e.message || t("Could not reject"));
         }
-      },
+      }),
     });
   }
 
@@ -161,13 +174,26 @@ async function setupForm({ doc, call, updateField, createToast }) {
   const err = (message) => createToast({ message, type: "error" });
   // the server already saved the ticket; reload instead of saving a stale copy
   const reload = () => setTimeout(() => window.location.reload(), 1200);
+  // helpdesk's CustomActions binds onClick twice (@click and v-bind), so run each action once at a time
+  const once = (fn) => {
+    let busy = false;
+    return async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        await fn();
+      } finally {
+        busy = false;
+      }
+    };
+  };
   const actions = [];
 
   if (doc.fab_approval_status === "Pending" && (await call("fab_msp.api.can_approve_ticket", { ticket: doc.name }))) {
     actions.push({
       label: t("Approve"),
       iconLeft: "check",
-      onClick: async () => {
+      onClick: once(async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Approved" });
           reload();
@@ -175,12 +201,12 @@ async function setupForm({ doc, call, updateField, createToast }) {
         } catch (e) {
           err(e.message || t("Could not approve"));
         }
-      },
+      }),
     });
     actions.push({
       label: t("Reject"),
       iconLeft: "x",
-      onClick: async () => {
+      onClick: once(async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Rejected" });
           reload();
@@ -188,7 +214,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
         } catch (e) {
           err(e.message || t("Could not reject"));
         }
-      },
+      }),
     });
   }
 
