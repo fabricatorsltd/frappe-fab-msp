@@ -17,6 +17,8 @@ from helpdesk.helpdesk.doctype.hd_ticket.hd_ticket import _is_customer_manager
 from helpdesk.helpdesk.utils.email import helpdesk_outgoing_email_account
 from helpdesk.utils import get_helpdesk_url
 
+APPROVAL_STATUS = "Awaiting Approval"
+
 INTERNAL_APPROVER_ROLES = {"Agent Manager", "System Manager"}
 
 
@@ -131,8 +133,12 @@ def request_approval(ticket: str) -> str:
         frappe.throw(_("This request is not awaiting approval."))
     approval_by, _effect = _ticket_type_rules(t)
     t.db_set("fab_approval_status", "Pending")
-    # waiting on the customer's manager, so the ticket is parked, not open
-    _move_to_category(t, "Paused")
+    # parked on a status of its own: the inactivity reminder and auto-close watch
+    # Replied and must not close a request the manager has not decided yet
+    if frappe.db.exists("HD Ticket Status", APPROVAL_STATUS):
+        _set_status(t, APPROVAL_STATUS)
+    else:
+        _move_to_category(t, "Paused")
     _notify_approvers(t, approval_by)
     return "Pending"
 
@@ -142,6 +148,15 @@ def _status_for_category(statuses, category) -> str | None:
     rows = [s for s in statuses if s.get("category") == category]
     rows.sort(key=lambda s: (s.get("order") is None, s.get("order") or 0, s.get("name")))
     return rows[0]["name"] if rows else None
+
+
+def _set_status(ticket_doc, status) -> None:
+    if not status or ticket_doc.status == status:
+        return
+    ticket_doc.status = status
+    ticket_doc.status_category = frappe.db.get_value("HD Ticket Status", status, "category")
+    ticket_doc.flags.ignore_permissions = True
+    ticket_doc.save()
 
 
 def _move_to_category(ticket_doc, category) -> None:
@@ -295,7 +310,7 @@ def _send_ticket_mail(ticket_doc, recipient, subject, body, marker=False) -> Non
     if not sender:
         frappe.throw(_("No outgoing Email Account is configured for the helpdesk"))
     email = branded_email(body, subject, marker=marker)
-    last = ticket_doc.get_last_communication()
+    last = ticket_doc._last_threadable_communication()
     communication = frappe.get_doc(
         {
             "doctype": "Communication",
@@ -325,7 +340,7 @@ def _send_ticket_mail(ticket_doc, recipient, subject, body, marker=False) -> Non
         sender=sender.email_id,
         subject=subject,
         with_container=False,
-        in_reply_to=last.name if last else None,
+        in_reply_to=last,
         email_headers={"X-Auto-Generated": "msp-approval"},
         **email,
     )
@@ -345,7 +360,13 @@ def _record_decision(ticket_doc, decision) -> None:
     comment.reference_ticket = ticket_doc.name
     comment.insert(ignore_permissions=True)
 
-    _move_to_category(ticket_doc, "Open")
+    # reopen only a ticket still parked for the decision, never one an agent resolved
+    if ticket_doc.get("status_category") == "Paused":
+        reopen = frappe.db.get_single_value("HD Settings", "ticket_reopen_status")
+        if reopen:
+            _set_status(ticket_doc, reopen)
+        else:
+            _move_to_category(ticket_doc, "Open")
 
     addresses = ticket_doc._strip_own_mailboxes(ticket_doc.raised_by) if ticket_doc.raised_by else []
     if not addresses:

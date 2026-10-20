@@ -133,6 +133,7 @@ def after_install():
     ensure_custom_fields()
     ensure_ticket_template_fields()
     ensure_form_script()
+    ensure_approval_status()
     ensure_email_template()
     field_service.ensure_field_service_setup()
 
@@ -141,8 +142,33 @@ def after_migrate():
     ensure_custom_fields()
     ensure_ticket_template_fields()
     ensure_form_script()
+    ensure_approval_status()
     ensure_email_template()
     field_service.ensure_field_service_setup()
+
+
+def ensure_approval_status():
+    """A system-only Paused status for tickets waiting on a manager's decision.
+
+    Kept apart from Replied so the inactivity reminder and auto-close skip them."""
+    from fab_msp.api import APPROVAL_STATUS
+
+    if not frappe.db.exists("DocType", "HD Ticket Status") or frappe.db.exists("HD Ticket Status", APPROVAL_STATUS):
+        return
+    last_order = max(frappe.get_all("HD Ticket Status", pluck="order") or [0], key=lambda o: o or 0) or 0
+    frappe.get_doc(
+        {
+            "doctype": "HD Ticket Status",
+            "label_agent": APPROVAL_STATUS,
+            "label_customer": APPROVAL_STATUS,
+            "category": "Paused",
+            "color": "Amber",
+            "order": last_order + 1,
+            "enabled": 1,
+        }
+    ).insert(ignore_permissions=True)
+    if frappe.get_meta("HD Ticket Status").has_field("fab_system_only"):
+        frappe.db.set_value("HD Ticket Status", APPROVAL_STATUS, "fab_system_only", 1)
 
 
 def ensure_email_template():

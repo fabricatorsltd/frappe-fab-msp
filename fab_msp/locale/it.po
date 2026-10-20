@@ -257,3 +257,6 @@ msgstr "Rifiutato da {0} il {1}."
 
 msgid "No outgoing Email Account is configured for the helpdesk"
 msgstr "Nessun account email in uscita è configurato per l'helpdesk"
+
+msgid "Awaiting Approval"
+msgstr "In attesa di approvazione"

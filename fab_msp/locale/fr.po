@@ -241,3 +241,6 @@ msgstr "Rejeté par {0} le {1}."
 
 msgid "No outgoing Email Account is configured for the helpdesk"
 msgstr "Aucun compte e-mail sortant n'est configuré pour le helpdesk"
+
+msgid "Awaiting Approval"
+msgstr "En attente d'approbation"
