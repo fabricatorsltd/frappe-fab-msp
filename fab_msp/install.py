@@ -23,8 +23,8 @@ FORM_SCRIPT_NAME = "MSP Ticket Actions"
 FORM_SCRIPT = """
 async function setupForm({ doc, call, updateField, createToast }) {
   const t = window.__ || ((s) => s);
-  const ok = (title) => createToast({ title, icon: "check", iconClasses: "text-green-600" });
-  const err = (title) => createToast({ title, icon: "x", iconClasses: "text-red-600" });
+  const ok = (message) => createToast({ message, type: "success" });
+  const err = (message) => createToast({ message, type: "error" });
   const actions = [];
 
   const openDoc = (dt, name) =>
@@ -155,8 +155,8 @@ FORM_SCRIPT_PORTAL_NAME = "MSP Ticket Approval (Portal)"
 FORM_SCRIPT_PORTAL = """
 async function setupForm({ doc, call, updateField, createToast }) {
   const t = window.__ || ((s) => s);
-  const ok = (title) => createToast({ title, icon: "check", iconClasses: "text-green-600" });
-  const err = (title) => createToast({ title, icon: "x", iconClasses: "text-red-600" });
+  const ok = (message) => createToast({ message, type: "success" });
+  const err = (message) => createToast({ message, type: "error" });
   const actions = [];
 
   if (doc.fab_approval_status === "Pending" && (await call("fab_msp.api.can_approve_ticket", { ticket: doc.name }))) {

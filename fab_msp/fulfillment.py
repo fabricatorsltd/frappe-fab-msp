@@ -12,11 +12,14 @@ def fulfill_ticket(ticket_name: str) -> dict:
     system. Idempotent per ticket.
     """
     original_user = frappe.session.user
+    # set_user overwrites the session id and data, which would sign the web user out
+    original_sid, original_data = frappe.session.sid, frappe.session.data
     try:
         frappe.set_user("Administrator")
         return _fulfill(ticket_name)
     finally:
         frappe.set_user(original_user)
+        frappe.session.sid, frappe.session.data = original_sid, original_data
 
 
 def _fulfill(ticket_name: str) -> dict:
