@@ -206,13 +206,16 @@ def _notify_approvers(ticket_doc, approval_by) -> None:
     requester = _requester_name(ticket_doc)
     default_lang = frappe.db.get_single_value("System Settings", "language") or "en"
 
-    # render per recipient so each gets the mail in their own language
+    # one mail per language, so approvers who share a language share one thread entry
+    by_lang: dict[str, list[str]] = {}
     for recipient in recipients:
         lang = frappe.db.get_value("User", recipient, "language") or default_lang
+        by_lang.setdefault(lang, []).append(recipient)
+    for lang, group in by_lang.items():
         with use_language(lang):
             subject = _("Approval needed: {0} (#{1})").format(ticket_doc.subject or ticket_doc.name, ticket_doc.name)
             body = _approval_request_body(quote, requester, link)
-            _send_ticket_mail(ticket_doc, recipient, subject, body)
+            _send_ticket_mail(ticket_doc, group, subject, body)
 
 
 def _requester_name(ticket_doc) -> str:
@@ -300,7 +303,7 @@ def _decision_body(ticket_doc, decision, approver) -> str:
 """
 
 
-def _send_ticket_mail(ticket_doc, recipient, subject, body, marker=False) -> None:
+def _send_ticket_mail(ticket_doc, recipients, subject, body, marker=False) -> None:
     """Mail `body` from the helpdesk mailbox in the site's branded page and
     file it on the ticket thread. Call it in the recipient's language.
 
@@ -319,7 +322,7 @@ def _send_ticket_mail(ticket_doc, recipient, subject, body, marker=False) -> Non
             "content": body,
             "email_account": sender.name,
             "email_status": "Open",
-            "recipients": recipient,
+            "recipients": ", ".join(recipients),
             "reference_doctype": "HD Ticket",
             "reference_name": ticket_doc.name,
             "sender": sender.email_id,
@@ -333,7 +336,7 @@ def _send_ticket_mail(ticket_doc, recipient, subject, body, marker=False) -> Non
     communication.insert(ignore_permissions=True)
     frappe.sendmail(
         communication=communication.name,
-        recipients=[recipient],
+        recipients=recipients,
         reference_doctype="HD Ticket",
         reference_name=ticket_doc.name,
         reply_to=sender.email_id,
@@ -375,7 +378,7 @@ def _record_decision(ticket_doc, decision) -> None:
         subject_text = _("Request approved: {0} (#{1})") if decision == "Approved" else _("Request rejected: {0} (#{1})")
         subject = subject_text.format(ticket_doc.subject or ticket_doc.name, ticket_doc.name)
         body = _decision_body(ticket_doc, decision, approver)
-        _send_ticket_mail(ticket_doc, addresses[0], subject, body, marker=True)
+        _send_ticket_mail(ticket_doc, addresses[:1], subject, body, marker=True)
 
 
 @frappe.whitelist()
