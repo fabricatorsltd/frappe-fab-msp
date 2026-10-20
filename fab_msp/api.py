@@ -123,7 +123,8 @@ def request_approval(ticket: str) -> str:
     Pending and notifies the approver(s), so a manager is asked only for a real,
     completed service.
     """
-    t = frappe.get_doc("HD Ticket", ticket)
+    # lock the row so a double click cannot send the request twice
+    t = frappe.get_doc("HD Ticket", ticket, for_update=True)
     if not t.get("fab_customer_service"):
         frappe.throw(_("Provision or link a service before requesting approval."))
     if t.get("fab_approval_status") != "Awaiting Service":
@@ -367,7 +368,8 @@ def set_ticket_approval(ticket: str, decision: str) -> str:
     """
     if decision not in ("Approved", "Rejected"):
         frappe.throw(_("Invalid decision."))
-    t = frappe.get_doc("HD Ticket", ticket)
+    # lock the row so a double click cannot record the decision twice
+    t = frappe.get_doc("HD Ticket", ticket, for_update=True)
     if t.get("fab_approval_status") != "Pending":
         frappe.throw(_("This request is not pending approval."))
 

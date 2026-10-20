@@ -25,6 +25,8 @@ async function setupForm({ doc, call, updateField, createToast }) {
   const t = window.__ || ((s) => s);
   const ok = (message) => createToast({ message, type: "success" });
   const err = (message) => createToast({ message, type: "error" });
+  // the server already saved the ticket; reload instead of saving a stale copy
+  const reload = () => setTimeout(() => window.location.reload(), 1200);
   const actions = [];
 
   const openDoc = (dt, name) =>
@@ -60,7 +62,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
       onClick: async () => {
         try {
           await call("fab_msp.api.request_approval", { ticket: doc.name });
-          updateField("fab_approval_status", "Pending");
+          reload();
           ok(t("Approval requested"));
         } catch (e) {
           err(e.message || t("Could not request approval"));
@@ -76,7 +78,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
       onClick: async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Approved" });
-          updateField("fab_approval_status", "Approved");
+          reload();
           ok(t("Request approved"));
         } catch (e) {
           err(e.message || t("Could not approve"));
@@ -89,7 +91,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
       onClick: async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Rejected" });
-          updateField("fab_approval_status", "Rejected");
+          reload();
           ok(t("Request rejected"));
         } catch (e) {
           err(e.message || t("Could not reject"));
@@ -157,6 +159,8 @@ async function setupForm({ doc, call, updateField, createToast }) {
   const t = window.__ || ((s) => s);
   const ok = (message) => createToast({ message, type: "success" });
   const err = (message) => createToast({ message, type: "error" });
+  // the server already saved the ticket; reload instead of saving a stale copy
+  const reload = () => setTimeout(() => window.location.reload(), 1200);
   const actions = [];
 
   if (doc.fab_approval_status === "Pending" && (await call("fab_msp.api.can_approve_ticket", { ticket: doc.name }))) {
@@ -166,7 +170,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
       onClick: async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Approved" });
-          updateField("fab_approval_status", "Approved");
+          reload();
           ok(t("Request approved"));
         } catch (e) {
           err(e.message || t("Could not approve"));
@@ -179,7 +183,7 @@ async function setupForm({ doc, call, updateField, createToast }) {
       onClick: async () => {
         try {
           await call("fab_msp.api.set_ticket_approval", { ticket: doc.name, decision: "Rejected" });
-          updateField("fab_approval_status", "Rejected");
+          reload();
           ok(t("Request rejected"));
         } catch (e) {
           err(e.message || t("Could not reject"));
