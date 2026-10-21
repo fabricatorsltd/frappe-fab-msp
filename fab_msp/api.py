@@ -384,13 +384,13 @@ def _record_decision(ticket_doc, decision) -> None:
 def _notify_agents_of_decision(ticket_doc, decision, approver) -> None:
     """Tell the agents the request was decided, like the new reply mail:
     the assigned agents, or the whole active team on an unassigned ticket."""
-    active = frappe.get_all("HD Agent", filters={"is_active": 1}, pluck="name")
-    assigned = {a.get("name") for a in (ticket_doc.get_assigned_agents() or [])}
-    user = frappe.session.user.lower()
-    recipients = [a for a in ([a for a in active if a in assigned] or active) if "@" in a and a.lower() != user]
-    if not recipients:
-        return
     try:
+        active = frappe.get_all("HD Agent", filters={"is_active": 1}, pluck="name")
+        assigned = {a.get("name") for a in (ticket_doc.get_assigned_agents() or [])}
+        user = frappe.session.user.lower()
+        recipients = [a for a in ([a for a in active if a in assigned] or active) if "@" in a and a.lower() != user]
+        if not recipients:
+            return
         with use_language(get_default_language()):
             subject_text = _("[Approved] #{0}: {1}") if decision == "Approved" else _("[Rejected] #{0}: {1}")
             subject = subject_text.format(ticket_doc.name, ticket_doc.subject or "")
