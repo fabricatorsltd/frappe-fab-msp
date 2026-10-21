@@ -409,9 +409,9 @@ def _notify_agents_of_decision(ticket_doc, decision, approver) -> None:
 def _decision_agent_body(ticket_doc, decision, approver) -> str:
     style = mail_styles()
     if decision == "Approved":
-        intro = _("{0} approved the request. Go ahead with the change.")
+        intro = _("{0} approved the request.")
     else:
-        intro = _("{0} rejected the request. Do not make the change.")
+        intro = _("{0} did NOT approve the request.")
     rows = [(_("Customer"), escape_html(ticket_doc.customer or "-"))]
     if ticket_doc.get("fab_customer_service"):
         rows.append((_("Service", context="Approval mail"), escape_html(ticket_doc.fab_customer_service)))

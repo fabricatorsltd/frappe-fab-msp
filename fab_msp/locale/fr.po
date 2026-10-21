@@ -251,11 +251,11 @@ msgstr "[Approuvée] #{0} : {1}"
 msgid "[Rejected] #{0}: {1}"
 msgstr "[Refusée] #{0} : {1}"
 
-msgid "{0} approved the request. Go ahead with the change."
-msgstr "{0} a approuvé la demande. Vous pouvez effectuer la modification."
+msgid "{0} approved the request."
+msgstr "{0} a approuvé la demande."
 
-msgid "{0} rejected the request. Do not make the change."
-msgstr "{0} a refusé la demande. N'effectuez pas la modification."
+msgid "{0} did NOT approve the request."
+msgstr "{0} n'a PAS approuvé la demande."
 
 msgid "Customer"
 msgstr "Client"
