@@ -244,3 +244,24 @@ msgstr "Aucun compte e-mail sortant n'est configuré pour le helpdesk"
 
 msgid "Awaiting Approval"
 msgstr "En attente d'approbation"
+
+msgid "[Approved] #{0}: {1}"
+msgstr "[Approuvée] #{0} : {1}"
+
+msgid "[Rejected] #{0}: {1}"
+msgstr "[Refusée] #{0} : {1}"
+
+msgid "{0} approved the request. Go ahead with the change."
+msgstr "{0} a approuvé la demande. Vous pouvez effectuer la modification."
+
+msgid "{0} rejected the request. Do not make the change."
+msgstr "{0} a refusé la demande. N'effectuez pas la modification."
+
+msgid "Customer"
+msgstr "Client"
+
+msgid "Quantity"
+msgstr "Quantité"
+
+msgid "Open the ticket"
+msgstr "Ouvrir le ticket"

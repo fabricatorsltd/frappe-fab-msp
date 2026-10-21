@@ -381,6 +381,51 @@ def _record_decision(ticket_doc, decision) -> None:
         _send_ticket_mail(ticket_doc, addresses[:1], subject, body, marker=True)
 
 
+def _notify_agents_of_decision(ticket_doc, decision, approver) -> None:
+    """Tell the agents the request was decided, like the new reply mail:
+    the assigned agents, or the whole active team on an unassigned ticket."""
+    active = frappe.get_all("HD Agent", filters={"is_active": 1}, pluck="name")
+    assigned = {a.get("name") for a in (ticket_doc.get_assigned_agents() or [])}
+    user = frappe.session.user.lower()
+    recipients = [a for a in ([a for a in active if a in assigned] or active) if "@" in a and a.lower() != user]
+    if not recipients:
+        return
+    try:
+        with use_language(get_default_language()):
+            subject_text = _("[Approved] #{0}: {1}") if decision == "Approved" else _("[Rejected] #{0}: {1}")
+            subject = subject_text.format(ticket_doc.name, ticket_doc.subject or "")
+            frappe.sendmail(
+                recipients=recipients,
+                subject=subject,
+                **branded_email(_decision_agent_body(ticket_doc, decision, approver), subject),
+                reference_doctype="HD Ticket",
+                reference_name=ticket_doc.name,
+                email_headers={"X-Auto-Generated": "msp-decision-agents"},
+            )
+    except Exception:
+        ticket_doc.log_error("Could not notify agents of the approval decision")
+
+
+def _decision_agent_body(ticket_doc, decision, approver) -> str:
+    style = mail_styles()
+    if decision == "Approved":
+        intro = _("{0} approved the request. Go ahead with the change.")
+    else:
+        intro = _("{0} rejected the request. Do not make the change.")
+    rows = [(_("Customer"), escape_html(ticket_doc.customer or "-"))]
+    if ticket_doc.get("fab_customer_service"):
+        rows.append((_("Service", context="Approval mail"), escape_html(ticket_doc.fab_customer_service)))
+    if ticket_doc.get("fab_quantity"):
+        rows.append((_("Quantity"), escape_html(str(ticket_doc.fab_quantity))))
+    link = frappe.utils.get_url("/helpdesk/tickets/" + str(ticket_doc.name))
+    return f"""\
+<p style="margin:0 0 8px;">{escape_html(intro.format(approver))}</p>
+<p style="margin:0 0 20px;font-size:18px;font-weight:600;line-height:1.4;">#{ticket_doc.name} {escape_html(ticket_doc.subject or "")}</p>
+{_detail_table(rows)}
+<p style="margin:0;"><a href="{link}" style="{style.button}">{_("Open the ticket")}</a></p>
+"""
+
+
 @frappe.whitelist()
 def set_ticket_approval(ticket: str, decision: str) -> str:
     """Approve or reject a ticket's service request.
@@ -412,4 +457,5 @@ def set_ticket_approval(ticket: str, decision: str) -> str:
         # fulfillment writes the ticket through its own copy
         t = frappe.get_doc("HD Ticket", ticket)
     _record_decision(t, decision)
+    _notify_agents_of_decision(t, decision, frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user)
     return decision

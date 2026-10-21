@@ -260,3 +260,24 @@ msgstr "Nessun account email in uscita è configurato per l'helpdesk"
 
 msgid "Awaiting Approval"
 msgstr "In attesa di approvazione"
+
+msgid "[Approved] #{0}: {1}"
+msgstr "[Approvata] #{0}: {1}"
+
+msgid "[Rejected] #{0}: {1}"
+msgstr "[Rifiutata] #{0}: {1}"
+
+msgid "{0} approved the request. Go ahead with the change."
+msgstr "{0} ha approvato la richiesta. Procedete con la modifica."
+
+msgid "{0} rejected the request. Do not make the change."
+msgstr "{0} ha rifiutato la richiesta. Non fate la modifica."
+
+msgid "Customer"
+msgstr "Cliente"
+
+msgid "Quantity"
+msgstr "Quantità"
+
+msgid "Open the ticket"
+msgstr "Apri il ticket"
