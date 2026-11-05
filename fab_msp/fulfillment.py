@@ -102,8 +102,8 @@ def prorata_unit(rate, renewal_date, on_date=None) -> tuple[float, int]:
 
 def quote_ticket(t) -> dict:
     """What approving the ticket will charge, as fulfillment would bill it, for
-    the approval mail. `kind` is "prorata" or "one_time" when there is a price
-    to show, None otherwise (not billable, no price, or a new recurring pool)."""
+    the approval mail. `kind` is "prorata", "first_period" or "one_time" when
+    there is a price to show, None otherwise (not billable or no price)."""
     rules = _rules(t)
     cs = frappe.get_doc("Customer Service", t.fab_customer_service) if t.get("fab_customer_service") else None
     _apply_service_rules(rules, cs)
@@ -124,8 +124,8 @@ def quote_ticket(t) -> dict:
     elif rules["coterm"] and cs and cs.renewal_date:
         unit, _days = prorata_unit(rate, cs.renewal_date)
         kind = "prorata"
-    else:
-        return quote
+    else:  # a new pool starts its own term on approval, so the first period is billed in full
+        unit, kind = rate, "first_period"
     quote.update(
         kind=kind,
         rate=rate,

@@ -239,16 +239,16 @@ def _change_text(quote) -> str:
 def _cost_lines(quote, money, date) -> list[str]:
     """The cost of the change as fulfillment will bill it, one line each; none
     when there is no price to show. `money` and `date` format the values."""
+    monthly = quote.get("interval") == "Monthly"
+    per = _("({0} per licence per month after that)") if monthly else _("({0} per licence per year after that)")
     if quote.get("kind") == "prorata":
-        per = (
-            _("({0} per licence per month after that)")
-            if quote.get("interval") == "Monthly"
-            else _("({0} per licence per year after that)")
-        )
         return [
             _("{0} now, pro-rata until the {1} renewal").format(money(quote["total"]), date(quote["renewal_date"])),
             per.format(money(quote["rate"])),
         ]
+    if quote.get("kind") == "first_period":
+        first = _("{0} now, for the first month") if monthly else _("{0} now, for the first year")
+        return [first.format(money(quote["total"])), per.format(money(quote["rate"]))]
     if quote.get("kind") == "one_time":
         return [_("{0}, one-time charge").format(money(quote["total"]))]
     return []

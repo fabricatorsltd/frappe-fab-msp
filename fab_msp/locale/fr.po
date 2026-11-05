@@ -203,6 +203,12 @@ msgstr "{0} maintenant, au prorata jusqu'au renouvellement du {1}"
 msgid "({0} per licence per year after that)"
 msgstr "(puis {0} par licence et par an)"
 
+msgid "{0} now, for the first year"
+msgstr "{0} maintenant, pour la première année"
+
+msgid "{0} now, for the first month"
+msgstr "{0} maintenant, pour le premier mois"
+
 msgid "({0} per licence per month after that)"
 msgstr "(puis {0} par licence et par mois)"
 

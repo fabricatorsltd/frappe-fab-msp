@@ -102,6 +102,18 @@ class TestCostLines(unittest.TestCase):
         lines = self.lines(kind="prorata", total=1, rate=4, interval="Monthly", renewal_date="2027-01-05")
         self.assertEqual(lines[1], "(EUR 4.00 per licence per month after that)")
 
+    def test_new_pool_first_year_then_annual_rate(self):
+        self.assertEqual(
+            self.lines(kind="first_period", total=1664, rate=2.08, interval="Annual"),
+            ["EUR 1664.00 now, for the first year", "(EUR 2.08 per licence per year after that)"],
+        )
+
+    def test_new_monthly_pool(self):
+        self.assertEqual(
+            self.lines(kind="first_period", total=40, rate=4, interval="Monthly"),
+            ["EUR 40.00 now, for the first month", "(EUR 4.00 per licence per month after that)"],
+        )
+
     def test_one_time(self):
         self.assertEqual(self.lines(kind="one_time", total=85), ["EUR 85.00, one-time charge"])
 

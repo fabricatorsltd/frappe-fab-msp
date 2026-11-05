@@ -219,6 +219,12 @@ msgstr "{0} ora, in proporzione fino al rinnovo del {1}"
 msgid "({0} per licence per year after that)"
 msgstr "(poi {0} per licenza all'anno)"
 
+msgid "{0} now, for the first year"
+msgstr "{0} ora, per il primo anno"
+
+msgid "{0} now, for the first month"
+msgstr "{0} ora, per il primo mese"
+
 msgid "({0} per licence per month after that)"
 msgstr "(poi {0} per licenza al mese)"
 
